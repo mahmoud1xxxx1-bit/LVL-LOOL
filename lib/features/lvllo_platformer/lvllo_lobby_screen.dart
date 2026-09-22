@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/theme/cosmic_background.dart';
-import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/theme/lvllo_brand.dart';
-import '../../../../core/theme/game_bottom_nav.dart';
-import '../../../../store_screen.dart';
+import '../../core/theme/cosmic_background.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/lvllo_brand.dart';
+import '../../core/theme/game_bottom_nav.dart';
+import '../../store_screen.dart';
 import 'world_hub_screen.dart';
-import '../../../../economy_manager.dart';
+import '../../economy_manager.dart';
 
 class LvlloLobbyScreen extends StatefulWidget {
   const LvlloLobbyScreen({super.key});
