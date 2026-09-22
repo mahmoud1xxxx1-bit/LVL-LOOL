@@ -31,6 +31,9 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
   Future<void> _loadProgress() async {
     final completed = await EconomyManager.completedStageIds();
     final unlocked = <int>{1};
+    if (EconomyManager.isOwnerTestAccount()) {
+      unlocked.addAll(List<int>.generate(6, (index) => index + 1));
+    }
     for (var season = 2; season <= 6; season++) {
       if (await EconomyManager.isSeasonUnlocked(season)) unlocked.add(season);
     }
@@ -59,7 +62,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
     if (start != true || !mounted) return;
 
     final economy = await EconomyManager.checkEconomy();
-    if ((economy['lives'] as int? ?? 0) <= 0) {
+    if (economy['isOwnerTestAccount'] != true && (economy['lives'] as int? ?? 0) <= 0) {
       if (!mounted) return;
       await showLifeRecoveryDialog(context);
       return;
