@@ -1,5 +1,47 @@
 {
-  "project_info": {"project_number":"351650195477","project_id":"lvl-lool","storage_bucket":"lvl-lool.firebasestorage.app"},
-  "client":[{"client_info":{"mobilesdk_app_id":"1:351650195477:android:ef05ef635311151e6d461c","android_client_info":{"package_name":"com.app.mmxx"}},"oauth_client":[{"client_id":"351650195477-okbctajcbqg812eclubim7cckfkn49s9.apps.googleusercontent.com","client_type":3}],"api_key":[{"current_key":"AIzaSyCAVxsqrde3eVBQhBBj-zx05UEZbPbCEdQ"}],"services":{"appinvite_service":{"other_platform_oauth_client":[{"client_id":"351650195477-okbctajcbqg812eclubim7cckfkn49s9.apps.googleusercontent.com","client_type":3}]}}}],
-  "configuration_version":"1"
+  "project_info": {
+    "project_number": "351650195477",
+    "project_id": "lvl-lool",
+    "storage_bucket": "lvl-lool.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:351650195477:android:ef05ef635311151e6d461c",
+        "android_client_info": {
+          "package_name": "com.app.mmxx"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "351650195477-i95vmgp93geqes2u81lplblgprocjqe6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.app.mmxx",
+            "certificate_hash": "af5a59247928692b511fde7b06284e6478a35041"
+          }
+        },
+        {
+          "client_id": "351650195477-okbctajcbqg812eclubim7cckfkn49s9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAVxsqrde3eVBQhBBj-zx05UEZbPbCEdQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "351650195477-okbctajcbqg812eclubim7cckfkn49s9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }
