@@ -9,7 +9,7 @@ void main() {
       final plan = TrollStagePlan.fromStageId(stageId);
       expect(plan.stageId, stageId);
       expect(plan.season, inInclusiveRange(1, 6));
-      expect(plan.localStage, inInclusiveRange(1, plan.levelsPerMechanic));
+      expect(plan.localStage, plan.season == 6 ? inInclusiveRange(1, 3) : inInclusiveRange(1, 20));
       expect(plan.difficulty, inInclusiveRange(1, 3));
       seen.add(plan.mechanicId);
       final engine = TrollEngine(
