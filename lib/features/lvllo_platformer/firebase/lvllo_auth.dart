@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 
 class LvlloPlatformerAuth {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -28,12 +28,12 @@ class LvlloPlatformerAuth {
         } catch (_) {}
         
         final googleUser = await googleSignIn.authenticate();
-        if (googleUser == null) throw Exception('Google Sign-in popup was canceled.');
-        
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          idToken: googleAuth.idToken,
-        );
+        final googleAuth = googleUser.authentication;
+        final idToken = googleAuth.idToken;
+        if (idToken == null || idToken.isEmpty) {
+          throw Exception('Google Sign-in did not return an ID token.');
+        }
+        final credential = GoogleAuthProvider.credential(idToken: idToken);
         
         final UserCredential userCredential = await _auth.signInWithCredential(credential);
         final User? user = userCredential.user;
@@ -44,7 +44,7 @@ class LvlloPlatformerAuth {
         return user;
       }
     } catch (e) {
-      print('Error signing in with Google: $e');
+      debugPrint('Error signing in with Google: $e');
       throw Exception(e.toString());
     }
   }
