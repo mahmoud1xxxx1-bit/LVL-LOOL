@@ -882,6 +882,17 @@ class TrollEngine {
 
   bool completedAsWin = false; // true = player actually reached the door
 
+  /// Restarts the exact current round after the player chooses Retry.
+  /// The deterministic round seed is preserved for muscle-memory gameplay.
+  void retryCurrentRound() {
+    allComplete = false;
+    completedAsWin = false;
+    roundHearts = 1;
+    stageSeed = _seedForRound(round);
+    rng = Random(stageSeed);
+    _loadLevel(round);
+  }
+
   void nextRound({bool failed = false}) {
     if (failed) {
       if (roundHearts > 0) {
