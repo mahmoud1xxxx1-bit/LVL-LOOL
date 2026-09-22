@@ -125,14 +125,14 @@ class _LvlloArtPainter extends CustomPainter {
     ], const Color(0xFF00BDEB));
 
     if (showDevil) {
-      final center = Offset(w * .5, h * .34);
+      final center = Offset(w * .5, h * .47);
       final glow = Paint()
         ..shader = RadialGradient(
           colors: const [Color(0x8A00E7FF), Color(0x0000E7FF)],
         ).createShader(Rect.fromCircle(center: center, radius: w * .27));
       canvas.drawCircle(center, w * .27, glow);
 
-      _drawDevil(canvas, center, w * .145);
+      _drawDevil(canvas, center, w * .18);
       if (showPlatform) {
         _drawPlatform(canvas, Offset(w * .5, h * .49), w * .62);
       }
