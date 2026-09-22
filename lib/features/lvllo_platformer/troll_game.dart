@@ -492,7 +492,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
           Container(
             width: 1,
             height: 30,
-            color: const Color(0x224FFFFFF),
+            color: const Color(0x22FFFFFF),
           ),
           _buildGearDirection(
             icon: Icons.chevron_right_rounded,
