@@ -430,7 +430,16 @@ class _TrollPainter extends CustomPainter {
             if (blink < 0.35) continue;
           }
         }
-        _drawPlatform(canvas, e.rect, timedTrap != null);
+        final isThwomp = engine.traps.whereType<ThwompCeilingTrap>().any((t) => t.targetIds.contains(e.id)) ||
+            engine.traps.whereType<MovingThwompTrap>().any((t) => t.targetIds.contains(e.id));
+        final isSpring = engine.traps.whereType<TrollSpringTrap>().any((t) => t.springId == e.id);
+        if (isThwomp) {
+          _drawThwomp(canvas, e.rect);
+        } else if (isSpring) {
+          _drawSpring(canvas, e.rect);
+        } else {
+          _drawPlatform(canvas, e.rect, timedTrap != null, e.color.opacity);
+        }
       } else if (e.type == TrollEntityType.spike) {
         _drawSpike(canvas, e.rect, theme.danger, e.isInverted);
       } else if (e.type == TrollEntityType.door) {
@@ -783,9 +792,10 @@ class _TrollPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawPlatform(Canvas canvas, RectD rect, bool timed) {
+  void _drawPlatform(Canvas canvas, RectD rect, bool timed, double opacity) {
     final r = RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(5));
-    final paint = Paint()..color = theme.platform;
+    final a = opacity.clamp(0.18, 1.0);
+    final paint = Paint()..color = theme.platform.withOpacity(a);
     canvas.drawRRect(r, paint);
 
     final top = Path()
@@ -794,10 +804,10 @@ class _TrollPainter extends CustomPainter {
       ..lineTo(rect.right - 11, rect.y + 5)
       ..lineTo(rect.x + 11, rect.y + 5)
       ..close();
-    paint.color = timed ? theme.accentBright : theme.platformTop;
+    paint.color = (timed ? theme.accentBright : theme.platformTop).withOpacity(a);
     canvas.drawPath(top, paint);
 
-    paint.color = theme.platformEdge.withOpacity(.95);
+    paint.color = theme.platformEdge.withOpacity(.95 * a);
     canvas.drawRect(Rect.fromLTWH(rect.x, rect.bottom - 4, rect.w, 4), paint);
 
     paint
@@ -811,6 +821,61 @@ class _TrollPainter extends CustomPainter {
       paint.color = theme.accentBright.withOpacity(.8);
       canvas.drawCircle(Offset(rect.right - 10, rect.y + 7), 2.2, paint);
     }
+  }
+
+  void _drawThwomp(Canvas canvas, RectD rect) {
+    final outer = RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(6));
+    final paint = Paint()..color = theme.platform;
+    canvas.drawRRect(outer, paint);
+
+    paint.color = theme.accent.withOpacity(.9);
+    canvas.drawRect(Rect.fromLTWH(rect.x + 4, rect.y + 4, rect.w - 8, 5), paint);
+
+    // The same compact face is reused for ceiling and moving crushers.
+    paint.color = const Color(0xFF05070D);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(rect.x + rect.w * .27, rect.y + rect.h * .27, rect.w * .46, rect.h * .42),
+        const Radius.circular(4),
+      ),
+      paint,
+    );
+
+    paint.color = theme.accentBright;
+    canvas.drawCircle(Offset(rect.x + rect.w * .39, rect.y + rect.h * .43), 2.8, paint);
+    canvas.drawCircle(Offset(rect.x + rect.w * .61, rect.y + rect.h * .43), 2.8, paint);
+
+    paint.color = theme.danger;
+    for (int i = 0; i < 3; i++) {
+      final x = rect.x + rect.w * (.25 + i * .25);
+      final spike = Path()
+        ..moveTo(x - 5, rect.bottom - 1)
+        ..lineTo(x, rect.bottom + 8)
+        ..lineTo(x + 5, rect.bottom - 1)
+        ..close();
+      canvas.drawPath(spike, paint);
+    }
+  }
+
+  void _drawSpring(Canvas canvas, RectD rect) {
+    final paint = Paint()..color = theme.platform;
+    final base = Rect.fromLTWH(rect.x + 2, rect.bottom - 8, rect.w - 4, 8);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(base, const Radius.circular(3)),
+      paint,
+    );
+    paint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..color = theme.accentBright;
+    final path = Path()
+      ..moveTo(rect.x + 7, rect.bottom - 9)
+      ..lineTo(rect.x + rect.w - 7, rect.bottom - 18)
+      ..lineTo(rect.x + 7, rect.bottom - 27)
+      ..lineTo(rect.x + rect.w - 7, rect.bottom - 36)
+      ..lineTo(rect.x + rect.w / 2, rect.top + 2);
+    canvas.drawPath(path, paint);
+    paint.style = PaintingStyle.fill;
   }
 
   void _drawDoor(Canvas canvas, RectD rect, Color color) {
