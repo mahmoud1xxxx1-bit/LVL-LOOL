@@ -46,6 +46,20 @@ jobs:
       - name: Flutter tests
         run: flutter test --reporter expanded
 
+      - name: Prepare LVL LOOL release signing
+        env:
+          LVLLOOL_KEYSTORE_BASE64: ${{ secrets.LVLLOOL_KEYSTORE_BASE64 }}
+          LVLLOOL_KEYSTORE_PASSWORD: ${{ secrets.LVLLOOL_KEYSTORE_PASSWORD }}
+          LVLLOOL_KEY_PASSWORD: ${{ secrets.LVLLOOL_KEY_PASSWORD }}
+        run: |
+          test -n "$LVLLOOL_KEYSTORE_BASE64"
+          test -n "$LVLLOOL_KEYSTORE_PASSWORD"
+          test -n "$LVLLOOL_KEY_PASSWORD"
+          echo "$LVLLOOL_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/lvllo-release.jks"
+          echo "LVLLOOL_KEYSTORE_PATH=$RUNNER_TEMP/lvllo-release.jks" >> "$GITHUB_ENV"
+          echo "LVLLOOL_KEYSTORE_PASSWORD=$LVLLOOL_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "LVLLOOL_KEY_PASSWORD=$LVLLOOL_KEY_PASSWORD" >> "$GITHUB_ENV"
+
       - name: Build release APK
         run: flutter build apk --release
 
