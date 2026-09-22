@@ -417,7 +417,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
           const SizedBox(height: 10),
           const Text('STAGE COMPLETE', style: TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           const SizedBox(height: 5),
-          Text('STAGE \${widget.stageId}', style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
+          Text('STAGE ${widget.stageId}', style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 18),
           Text(isFirst ? 'FIRST CLEAR REWARD' : 'REPLAY REWARD', style: const TextStyle(color: Color(0xFF8EA7C7), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.6)),
           const SizedBox(height: 10),
