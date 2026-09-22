@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'lvllo_platformer_engine.dart';
+import 'lvllo_engine.dart';
 
 class LvlloPlatformerGame extends StatefulWidget {
   const LvlloPlatformerGame({super.key, required this.levelId});

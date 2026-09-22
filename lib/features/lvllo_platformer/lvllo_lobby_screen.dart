@@ -9,7 +9,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/theme/lvllo_brand.dart';
 import '../../../../core/theme/game_bottom_nav.dart';
 import '../../../../store_screen.dart';
-import 'lvllo_platformer_hub_screen.dart';
+import 'world_hub_screen.dart';
 import '../../../../economy_manager.dart';
 
 class LvlloLobbyScreen extends StatefulWidget {
