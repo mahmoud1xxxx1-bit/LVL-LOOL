@@ -9,8 +9,12 @@ class EconomyManager {
   static const String ownerTestEmail = 'love.dotk@hmail.com';
 
   static bool isOwnerTestAccount() {
-    final email = FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase();
-    return email == ownerTestEmail;
+    try {
+      final email = FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase();
+      return email == ownerTestEmail;
+    } on FirebaseException {
+      return false;
+    }
   }
   // LVL LOOL progression/economy: Season 1 is free. Each later
   // season becomes purchasable only after 70% of the previous season is
