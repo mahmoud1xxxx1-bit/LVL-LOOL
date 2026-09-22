@@ -71,6 +71,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
         transitionDuration: const Duration(milliseconds: 240),
         reverseTransitionDuration: const Duration(milliseconds: 180),
         pageBuilder: (_, __, ___) => TrollGame(
+          stageId: stageId,
           startRound: plan.localStage,
           maxRounds: 1,
           levelsPerMechanic: plan.levelsPerMechanic,

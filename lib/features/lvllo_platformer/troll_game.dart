@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import '../../../../economy_manager.dart';
 import 'troll_engine.dart';
+import 'lvllo_season_visual_theme.dart';
 import '../../../../core/navigation/game_orientation.dart';
 
 class TrollGame extends StatefulWidget {
@@ -17,6 +18,7 @@ class TrollGame extends StatefulWidget {
     this.mechanicOffset = 0,
     this.stageSeedOverride,
     this.onFail,
+    this.stageId = 1,
   });
   final void Function(int score) onWin;
   final VoidCallback? onFail;
@@ -25,6 +27,7 @@ class TrollGame extends StatefulWidget {
   final int levelsPerMechanic;
   final int mechanicOffset;
   final int? stageSeedOverride;
+  final int stageId;
 
   @override
   State<TrollGame> createState() => _TrollGameState();
@@ -126,7 +129,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   child: SizedBox.expand(
                     child: ClipRect(
                       child: CustomPaint(
-                        painter: _TrollPainter(_engine),
+                        painter: _TrollPainter(_engine, widget.stageId),
                         size: Size.infinite,
                       ),
                     ),
@@ -381,8 +384,11 @@ class _LifeHudState extends State<_LifeHud> {
   }
 }
 class _TrollPainter extends CustomPainter {
-  _TrollPainter(this.engine);
+  _TrollPainter(this.engine, this.stageId);
   final TrollEngine engine;
+  final int stageId;
+
+  LvlloSeasonVisualTheme get theme => LvlloSeasonVisualTheme.forStage(stageId);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -412,39 +418,23 @@ class _TrollPainter extends CustomPainter {
       if (!e.isVisible) continue;
 
       if (e.type == TrollEntityType.block) {
-        // ── TimedPlatform blink effect ──────────────────────────────────────
-        // Find any TimedPlatformTrap that owns this block and check its state
         final timedTrap = engine.traps.whereType<TimedPlatformTrap>().where(
           (t) => t.blockIds.contains(e.id)
         ).firstOrNull;
 
         if (timedTrap != null) {
-          // Invisible → skip
           if (!timedTrap.isCurrentlyVisible) continue;
-          // Blink when < 0.7s remaining before disappear
           final timeLeft = timedTrap.showDuration - timedTrap.elapsedVisible;
           if (timeLeft < 0.7) {
             final blink = (sin(timedTrap.elapsedVisible * 18) + 1) / 2;
-            if (blink < 0.35) continue; // skip this frame = blink
+            if (blink < 0.35) continue;
           }
-          // Draw with orange tint to distinguish from regular blocks
-          paint.color = const Color(0xFFFF8800).withValues(alpha: 0.9);
-        } else {
-          paint.color = e.color;
         }
-
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(e.rect.toRect(), const Radius.circular(4)),
-          paint
-        );
-        paint.color = Colors.white.withValues(alpha: 0.05);
-        canvas.drawRect(Rect.fromLTWH(e.rect.x, e.rect.y, e.rect.w, 4), paint);
-
+        _drawPlatform(canvas, e.rect, timedTrap != null);
       } else if (e.type == TrollEntityType.spike) {
-        _drawSpike(canvas, e.rect, e.color, e.isInverted);
+        _drawSpike(canvas, e.rect, theme.danger, e.isInverted);
       } else if (e.type == TrollEntityType.door) {
-        // ── FakeDoor: drawn identically to real door ─────────────────────
-        _drawDoor(canvas, e.rect, e.color);
+        _drawDoor(canvas, e.rect, theme.portal);
       }
     }
 
@@ -453,19 +443,19 @@ class _TrollPainter extends CustomPainter {
       final zr = trap.zone;
       // Animated purple shimmer using time
       final shimmer = ((sin(engine.stageSeed * 0.173) + 1) * 0.075 + 0.15).clamp(0.0, 1.0);
-      paint.color = const Color(0xFF9900FF).withValues(alpha: 0.18 + shimmer * 0.12);
+      paint.color = theme.accent.withValues(alpha: 0.18 + shimmer * 0.12);
       canvas.drawRect(zr.toRect(), paint);
       // Border
-      paint.color = const Color(0xFF9900FF).withValues(alpha: 0.7);
+      paint.color = theme.accentBright.withValues(alpha: 0.7);
       paint.style = PaintingStyle.stroke;
       paint.strokeWidth = 2;
       canvas.drawRect(zr.toRect(), paint);
       paint.style = PaintingStyle.fill;
       // Label
       final tp = TextPainter(
-        text: const TextSpan(
+        text: TextSpan(
           text: '⚡',
-          style: TextStyle(fontSize: 18, color: Color(0xFFDD88FF)),
+          style: TextStyle(fontSize: 18, color: theme.accentBright),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -601,165 +591,67 @@ class _TrollPainter extends CustomPainter {
 
   void _drawBackground(Canvas canvas) {
     final Rect bgRect = Rect.fromLTWH(0, 0, engine.logicalWidth, engine.logicalHeight);
-    
-    Color gradStart, gradEnd, moonColor, backMount, frontMount;
 
-    if (engine.round >= 58) {
-      // C20: Absolute Chaos
-      gradStart = const Color(0xFF220000); gradEnd = const Color(0xFF000000); moonColor = const Color(0xFFFF0000); backMount = const Color(0xFF110000); frontMount = const Color(0xFF050000);
-    } else if (engine.round >= 55) {
-      // C19: Mirror Mode
-      gradStart = const Color(0xFF333333); gradEnd = const Color(0xFF111111); moonColor = const Color(0xFFFFFFFF); backMount = const Color(0xFF222222); frontMount = const Color(0xFF0A0A0A);
-    } else if (engine.round >= 52) {
-      // C18: Blinking
-      gradStart = const Color(0xFF000022); gradEnd = const Color(0xFF000000); moonColor = const Color(0xFF0000FF); backMount = const Color(0xFF000011); frontMount = const Color(0xFF000005);
-    } else if (engine.round >= 49) {
-      // C17: Slippery Ice
-      gradStart = const Color(0xFFCCFFFF); gradEnd = const Color(0xFF88CCFF); moonColor = const Color(0xFFFFFFFF); backMount = const Color(0xFF66AADD); frontMount = const Color(0xFF4488BB);
-    } else if (engine.round >= 46) {
-      // C16: Wind
-      gradStart = const Color(0xFF88AA88); gradEnd = const Color(0xFF446644); moonColor = const Color(0xFFAAFFCC); backMount = const Color(0xFF335533); frontMount = const Color(0xFF112211);
-    } else if (engine.round >= 43) {
-      // C15: Dash
-      gradStart = const Color(0xFF550055); gradEnd = const Color(0xFF220022); moonColor = const Color(0xFFFF00FF); backMount = const Color(0xFF330033); frontMount = const Color(0xFF110011);
-    } else if (engine.round >= 40) {
-      // C14: Tiny
-      gradStart = const Color(0xFF005500); gradEnd = const Color(0xFF002200); moonColor = const Color(0xFF00FF00); backMount = const Color(0xFF003300); frontMount = const Color(0xFF001100);
-    } else if (engine.round >= 37) {
-      // C13: Flappy
-      gradStart = const Color(0xFF005555); gradEnd = const Color(0xFF002222); moonColor = const Color(0xFF00FFFF); backMount = const Color(0xFF003333); frontMount = const Color(0xFF001111);
-    } else if (engine.round >= 34) {
-      // C12: Low Gravity
-      gradStart = const Color(0xFF555555); gradEnd = const Color(0xFF222222); moonColor = const Color(0xFFCCCCCC); backMount = const Color(0xFF333333); frontMount = const Color(0xFF111111);
-    } else if (engine.round >= 31) {
-      // C11: Lava
-      gradStart = const Color(0xFF440000); gradEnd = const Color(0xFF220000); moonColor = const Color(0xFFFF5500); backMount = const Color(0xFF330000); frontMount = const Color(0xFF110000);
-    } else if (engine.round >= 28) {
-
-      // C10: Void Purple
-      gradStart = const Color(0xFF330033);
-      gradEnd = const Color(0xFF000000);
-      moonColor = const Color(0xFFFF00FF);
-      backMount = const Color(0xFF1A001A);
-      frontMount = const Color(0xFF0D000D);
-    } else if (engine.round >= 25) {
-      // C9: Industrial Orange
-      gradStart = const Color(0xFF442200);
-      gradEnd = const Color(0xFF110500);
-      moonColor = const Color(0xFFFF6600);
-      backMount = const Color(0xFF331100);
-      frontMount = const Color(0xFF1A0800);
-    } else if (engine.round >= 22) {
-      // C8: Pitch Black / Blood Red
-      gradStart = const Color(0xFF110000);
-      gradEnd = const Color(0xFF000000);
-      moonColor = const Color(0xFFFF0000);
-      backMount = const Color(0xFF0A0000);
-      frontMount = const Color(0xFF050000);
-    } else if (engine.round >= 19) {
-      // C7: Teal / Ocean
-      gradStart = const Color(0xFF003344);
-      gradEnd = const Color(0xFF001122);
-      moonColor = const Color(0xFF00FFCC);
-      backMount = const Color(0xFF002233);
-      frontMount = const Color(0xFF000A11);
-    } else if (engine.round >= 16) {
-      // C6: Golden / Amber
-      gradStart = const Color(0xFF553311);
-      gradEnd = const Color(0xFF221100);
-      moonColor = const Color(0xFFFFCC00);
-      backMount = const Color(0xFF331A00);
-      frontMount = const Color(0xFF1A0D00);
-    } else if (engine.round >= 13) {
-      // C5: Ice Blue
-      gradStart = const Color(0xFF004466);
-      gradEnd = const Color(0xFF001133);
-      moonColor = const Color(0xFFBBE4FF);
-      backMount = const Color(0xFF003355);
-      frontMount = const Color(0xFF001122);
-    } else if (engine.round >= 10) {
-      // C4: Glitch Purple
-      gradStart = const Color(0xFF4A148C);
-      gradEnd = const Color(0xFF1A0033);
-      moonColor = const Color(0xFFFF00FF);
-      backMount = const Color(0xFF2A0D45);
-      frontMount = const Color(0xFF110422);
-    } else if (engine.round >= 7) {
-      // C3: Hacker Green
-      gradStart = const Color(0xFF004411);
-      gradEnd = const Color(0xFF001A00);
-      moonColor = const Color(0xFF00FF44);
-      backMount = const Color(0xFF003311);
-      frontMount = const Color(0xFF001A05);
-    } else if (engine.round >= 4) {
-      // C2: Crimson Red
-      gradStart = const Color(0xFF7A1C2C);
-      gradEnd = const Color(0xFF3A0D16);
-      moonColor = const Color(0xFFFF1133);
-      backMount = const Color(0xFF4A0F1B);
-      frontMount = const Color(0xFF1F060A);
-    } else {
-      // C1: Twilight Blue
-      gradStart = const Color(0xFF3B3B6D);
-      gradEnd = const Color(0xFF1A1A3A);
-      moonColor = const Color(0xFF00E5FF);
-      backMount = const Color(0xFF1D2645);
-      frontMount = const Color(0xFF0E1428);
-    }
-
-    Paint bgPaint = Paint()
+    final bgPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [gradStart, gradEnd],
+        colors: [theme.backgroundTop, theme.backgroundBottom],
       ).createShader(bgRect);
     canvas.drawRect(bgRect, bgPaint);
 
-    // Parallax values
-    double moonX = 400 - (engine.cameraX * 0.05);
-    double backMountainOffset = -(engine.cameraX * 0.2) % 800;
-    double frontMountainOffset = -(engine.cameraX * 0.5) % 800;
-    
-    Paint paint = Paint();
+    final moonX = 400 - (engine.cameraX * 0.05);
+    final moon = Paint()
+      ..color = theme.accent.withOpacity(.12)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 42);
+    canvas.drawCircle(Offset(moonX, 285), 92, moon);
+    moon.maskFilter = null;
+    moon.color = theme.accentBright.withOpacity(.18);
+    canvas.drawCircle(Offset(moonX, 285), 62, moon);
 
-    // Glowing Moon
-    paint.color = moonColor.withOpacity(0.3);
-    paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
-    canvas.drawCircle(Offset(moonX, 300), 100, paint);
-    paint.color = moonColor.withOpacity(0.6);
-    paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    canvas.drawCircle(Offset(moonX, 300), 60, paint);
-    paint.maskFilter = null;
+    final backOffset = -(engine.cameraX * 0.16) % 800;
+    final frontOffset = -(engine.cameraX * 0.34) % 800;
+    final backPaint = Paint()..color = theme.mountainBack;
+    final frontPaint = Paint()..color = theme.mountainFront;
 
-    // Back Mountains (drawn twice for seamless tiling)
-    paint.color = backMount;
     for (int i = 0; i < 2; i++) {
-      double startX = backMountainOffset + (i * 800);
-      var path = Path()
-        ..moveTo(startX, 600)
-        ..lineTo(startX, 300)
-        ..lineTo(startX + 200, 150)
-        ..lineTo(startX + 450, 400)
-        ..lineTo(startX + 600, 200)
-        ..lineTo(startX + 800, 350)
-        ..lineTo(startX + 800, 600)
+      final bx = backOffset + i * 800;
+      final back = Path()
+        ..moveTo(bx, 600)
+        ..lineTo(bx, 330)
+        ..lineTo(bx + 170, 205)
+        ..lineTo(bx + 300, 320)
+        ..lineTo(bx + 470, 155)
+        ..lineTo(bx + 650, 345)
+        ..lineTo(bx + 800, 260)
+        ..lineTo(bx + 800, 600)
         ..close();
-      canvas.drawPath(path, paint);
+      canvas.drawPath(back, backPaint);
+
+      final fx = frontOffset + i * 800;
+      final front = Path()
+        ..moveTo(fx, 600)
+        ..lineTo(fx, 430)
+        ..lineTo(fx + 210, 285)
+        ..lineTo(fx + 360, 405)
+        ..lineTo(fx + 520, 250)
+        ..lineTo(fx + 800, 395)
+        ..lineTo(fx + 800, 600)
+        ..close();
+      canvas.drawPath(front, frontPaint);
     }
 
-    // Front Mountains (drawn twice for seamless tiling)
-    paint.color = frontMount;
-    for (int i = 0; i < 2; i++) {
-      double startX = frontMountainOffset + (i * 800);
-      var path = Path()
-        ..moveTo(startX, 600)
-        ..lineTo(startX, 450)
-        ..lineTo(startX + 300, 250)
-        ..lineTo(startX + 550, 450)
-        ..lineTo(startX + 800, 300)
-        ..lineTo(startX + 800, 600)
+    final shardPaint = Paint()..color = theme.accent.withOpacity(.16);
+    for (int i = 0; i < 9; i++) {
+      final x = ((i * 137.0) - engine.cameraX * .08) % engine.logicalWidth;
+      final y = 90.0 + (i % 4) * 92.0;
+      final path = Path()
+        ..moveTo(x, y)
+        ..lineTo(x + 7, y - 18)
+        ..lineTo(x + 19, y + 2)
+        ..lineTo(x + 5, y + 13)
         ..close();
-      canvas.drawPath(path, paint);
+      canvas.drawPath(path, shardPaint);
     }
   }
 
@@ -776,69 +668,54 @@ class _TrollPainter extends CustomPainter {
     }
   }
 
-  // Standard spike — multiple sharp triangles, taller and more dangerous-looking
+  // One LVL LOOL spike language shared by every season.
   void _drawSpike(Canvas canvas, RectD rect, Color color, bool inverted) {
-    // Professional, clean, symmetrical Geometry Dash style 2-tone spikes
     final count = (rect.w / 18.0).round().clamp(1, 6);
     final tw = rect.w / count;
-    final spikeH = rect.h * 0.90; // Tall and sharp
-
+    final spikeH = rect.h * .88;
     final paint = Paint();
-    
+
+    paint.color = theme.platform;
+    canvas.drawRect(
+      Rect.fromLTWH(rect.x, inverted ? rect.y + rect.h - 5 : rect.y, rect.w, 5),
+      paint,
+    );
+
     for (int i = 0; i < count; i++) {
       final lx = rect.x + i * tw;
       final rx = rect.x + (i + 1) * tw;
       final mx = (lx + rx) / 2;
-      
-      final leftPath = Path();
-      final rightPath = Path();
-      
-      if (inverted) {
-        // Ceiling spike (points down)
-        leftPath.moveTo(mx, rect.y); leftPath.lineTo(lx, rect.y); leftPath.lineTo(mx, rect.y + spikeH);
-        rightPath.moveTo(mx, rect.y); rightPath.lineTo(mx, rect.y + spikeH); rightPath.lineTo(rx, rect.y);
-      } else {
-        // Floor spike (points up)
-        leftPath.moveTo(mx, rect.y); leftPath.lineTo(lx, rect.y + spikeH); leftPath.lineTo(mx, rect.y + spikeH);
-        rightPath.moveTo(mx, rect.y); rightPath.lineTo(mx, rect.y + spikeH); rightPath.lineTo(rx, rect.y + spikeH);
-      }
-      leftPath.close();
-      rightPath.close();
+      final path = Path();
 
-      // 1. Draw soft drop shadow for depth
-      final shadowPath = Path();
       if (inverted) {
-        shadowPath.moveTo(lx, rect.y); shadowPath.lineTo(rx, rect.y); shadowPath.lineTo(mx, rect.y + spikeH + 4);
+        path
+          ..moveTo(lx, rect.y + rect.h - 5)
+          ..lineTo(mx, rect.y + rect.h - spikeH)
+          ..lineTo(rx, rect.y + rect.h - 5)
+          ..close();
       } else {
-        shadowPath.moveTo(mx, rect.y - 4); shadowPath.lineTo(rx, rect.y + spikeH); shadowPath.lineTo(lx, rect.y + spikeH);
+        path
+          ..moveTo(lx, rect.y + 5)
+          ..lineTo(mx, rect.y + spikeH)
+          ..lineTo(rx, rect.y + 5)
+          ..close();
       }
-      shadowPath.close();
-      paint.color = Colors.black.withOpacity(0.4);
-      paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-      canvas.drawPath(shadowPath, paint);
-      paint.maskFilter = null;
-      
-      // 2. Draw Left Half (Base Color - Bright)
-      paint.color = color;
-      canvas.drawPath(leftPath, paint);
-      
-      // 3. Draw Right Half (Darker for clean 2D shading)
-      int r = (color.red * 0.65).toInt();
-      int g = (color.green * 0.65).toInt();
-      int b = (color.blue * 0.65).toInt();
-      paint.color = Color.fromARGB(color.alpha, r, g, b);
-      canvas.drawPath(rightPath, paint);
-      
-      // 4. Draw bright center highlight edge
+
+      paint.color = color.withOpacity(.92);
+      canvas.drawPath(path, paint);
+
       final edge = Path();
       if (inverted) {
-        edge.moveTo(mx, rect.y); edge.lineTo(mx, rect.y + spikeH);
+        edge.moveTo(mx, rect.y + rect.h - spikeH);
+        edge.lineTo(lx + 3, rect.y + rect.h - 6);
       } else {
-        edge.moveTo(mx, rect.y + spikeH); edge.lineTo(mx, rect.y);
+        edge.moveTo(mx, rect.y + spikeH);
+        edge.lineTo(lx + 3, rect.y + 6);
       }
-      paint.style = PaintingStyle.stroke;
-      paint.strokeWidth = 1.0;
-      paint.color = Colors.white.withOpacity(0.5);
+      paint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = theme.accentBright.withOpacity(.62);
       canvas.drawPath(edge, paint);
       paint.style = PaintingStyle.fill;
     }
@@ -906,61 +783,72 @@ class _TrollPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawDoor(Canvas canvas, RectD rect, Color color) {
-    // A magical circular portal with pearls/sparkles
-    final cx = rect.x + rect.w / 2;
-    final cy = rect.y + rect.h / 2;
-    // Radius slightly larger than the previous box
-    final r = (rect.w > rect.h ? rect.w : rect.h) * 0.65;
-    
-    double time = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    
-    // 1. Outer mystical glow
-    final paint = Paint()
-      ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 30)
-      ..color = const Color(0xFF00E5FF).withOpacity(0.8);
-    canvas.drawCircle(Offset(cx, cy), r, paint);
-    
-    // 2. Portal Void (Swirling Gradient)
-    paint.maskFilter = null;
-    paint.shader = ui.Gradient.radial(
-      Offset(cx, cy),
-      r,
-      [const Color(0xFF001133), const Color(0xFF00E5FF)],
-      [0.0, 1.0],
-    );
-    canvas.drawCircle(Offset(cx, cy), r, paint);
-    paint.shader = null;
-    
-    // 3. Spinning Magical Runes / Ring
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 3.0;
-    paint.color = const Color(0xFFE0FFFF).withOpacity(0.7);
-    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.8), time * 2, 4.5, false, paint);
-    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r * 0.9), -time * 1.5, 4.5, false, paint);
+  void _drawPlatform(Canvas canvas, RectD rect, bool timed) {
+    final r = RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(5));
+    final paint = Paint()..color = theme.platform;
+    canvas.drawRRect(r, paint);
+
+    final top = Path()
+      ..moveTo(rect.x + 5, rect.y)
+      ..lineTo(rect.right - 5, rect.y)
+      ..lineTo(rect.right - 11, rect.y + 5)
+      ..lineTo(rect.x + 11, rect.y + 5)
+      ..close();
+    paint.color = timed ? theme.accentBright : theme.platformTop;
+    canvas.drawPath(top, paint);
+
+    paint.color = theme.platformEdge.withOpacity(.95);
+    canvas.drawRect(Rect.fromLTWH(rect.x, rect.bottom - 4, rect.w, 4), paint);
+
+    paint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = theme.accent.withOpacity(.30);
+    canvas.drawRRect(r, paint);
     paint.style = PaintingStyle.fill;
-    
-    // 4. Floating Pearls
-    final pearlCount = 7;
-    for (int i = 0; i < pearlCount; i++) {
-       double angle = time * 1.2 + (i * 2 * 3.14159 / pearlCount);
-       double px = cx + cos(angle) * (r * 1.05);
-       double py = cy + sin(angle) * (r * 1.05) + sin(time * 3 + i) * 5;
-       
-       // Pearl glow
-       paint.color = Colors.white.withOpacity(0.9);
-       paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-       canvas.drawCircle(Offset(px, py), 6, paint);
-       
-       // Pearl core
-       paint.maskFilter = null;
-       paint.color = Colors.white;
-       canvas.drawCircle(Offset(px, py), 3, paint);
+
+    if (timed) {
+      paint.color = theme.accentBright.withOpacity(.8);
+      canvas.drawCircle(Offset(rect.right - 10, rect.y + 7), 2.2, paint);
     }
   }
 
+  void _drawDoor(Canvas canvas, RectD rect, Color color) {
+    final outer = rect.toRect().inflate(4);
+    final inner = rect.toRect().deflate(4);
+    final paint = Paint();
+
+    paint.color = theme.platform;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(outer, const Radius.circular(8)),
+      paint,
+    );
+
+    paint
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..color = color.withOpacity(.95);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(inner, const Radius.circular(5)),
+      paint,
+    );
+
+    paint.style = PaintingStyle.fill;
+    paint.color = color.withOpacity(.16);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(inner.deflate(3), const Radius.circular(3)),
+      paint,
+    );
+
+    paint.color = theme.accentBright.withOpacity(.75);
+    canvas.drawRect(
+      Rect.fromLTWH(inner.left + 5, inner.top + 8, 3, inner.height - 16),
+      paint,
+    );
+  }
+
   void _drawPlayer(Canvas canvas, TrollEntity p, {double opacity = 1.0}) {
-    var paint = Paint()..color = p.color.withOpacity(opacity);
+    var paint = Paint()..color = theme.accentBright.withOpacity(opacity);
     
     canvas.save();
     canvas.translate(p.rect.x + p.rect.w/2, p.rect.y + p.rect.h/2);
@@ -972,10 +860,15 @@ class _TrollPainter extends CustomPainter {
     
     canvas.translate(-(p.rect.x + p.rect.w/2), -(p.rect.y + p.rect.h/2));
 
-    var r = RRect.fromRectAndRadius(p.rect.toRect(), const Radius.circular(6));
+    var r = RRect.fromRectAndRadius(p.rect.toRect(), const Radius.circular(7));
     canvas.drawRRect(r, paint);
+    paint.color = theme.accent.withOpacity(.8 * opacity);
+    paint.style = PaintingStyle.stroke;
+    paint.strokeWidth = 1.5;
+    canvas.drawRRect(r, paint);
+    paint.style = PaintingStyle.fill;
     
-    paint.color = p.color.withOpacity(0.4 * opacity);
+    paint.color = theme.accent.withOpacity(0.35 * opacity);
     paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawRRect(r, paint);
     paint.maskFilter = null;
