@@ -23,7 +23,7 @@ class LvlloPlatformerAuth {
         final googleSignIn = GoogleSignIn.instance;
         try {
           await googleSignIn.initialize(
-            serverClientId: '492486855771-l4881i9c2kmgj0te1dhtgjc0i9av69g6.apps.googleusercontent.com',
+            serverClientId: '351650195477-okbctajcbqg812eclubim7cckfkn49s9.apps.googleusercontent.com',
           );
         } catch (_) {}
         
