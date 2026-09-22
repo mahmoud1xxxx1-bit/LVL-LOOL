@@ -20,8 +20,10 @@ void main() {
   testWidgets('world hub renders six seasons and stage one', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LvlloPlatformerHubScreen()));
     await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('SEASON 1'), findsWidgets);
+    expect(find.textContaining('1–20'), findsWidgets);
     expect(find.text('SEASON 6'), findsWidgets);
-    expect(find.textContaining('101–175'), findsWidgets);
+
   });
 
   testWidgets('store renders economy controls', (tester) async {
