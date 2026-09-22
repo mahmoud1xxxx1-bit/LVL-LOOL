@@ -6,7 +6,7 @@ class EconomyManager {
   // Owner/test account: this single authenticated Google account bypasses
   // progression locks so the full game can be QA-tested without changing
   // the normal player economy.
-  static const String ownerTestEmail = 'love.dotk@hmail.com';
+  static const String ownerTestEmail = 'love.dotk@gmail.com';
 
   static bool isOwnerTestAccount() {
     try {
