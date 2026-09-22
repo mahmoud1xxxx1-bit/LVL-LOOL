@@ -80,12 +80,17 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
           levelsPerMechanic: plan.levelsPerMechanic,
           mechanicOffset: plan.mechanicOffset,
           onWin: (_) async {
-            await EconomyManager.processStageWin(stageId);
             await _loadProgress();
             if (context.mounted) Navigator.of(context).pop();
           },
+          onNextStage: stageId < 175
+              ? () async {
+                  if (context.mounted) Navigator.of(context).pop();
+                  await Future<void>.delayed(const Duration(milliseconds: 180));
+                  if (mounted) _openStage(stageId + 1);
+                }
+              : null,
           onFail: () async {
-            await EconomyManager.deductLife();
             if (context.mounted) Navigator.of(context).pop();
           },
         ),
