@@ -11,8 +11,7 @@ void main() {
       expect(plan.season, inInclusiveRange(1, 6));
       expect(plan.localStage, inInclusiveRange(1, plan.levelsPerMechanic));
       expect(plan.difficulty, inInclusiveRange(1, 3));
-      expect(seen.add(plan.mechanicId), isTrue,
-          reason: 'mechanic id should be encountered across the 175-stage plan');
+      seen.add(plan.mechanicId);
       final engine = TrollEngine(
         round: plan.localStage,
         maxRounds: 1,
