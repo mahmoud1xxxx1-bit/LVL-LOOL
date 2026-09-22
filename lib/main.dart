@@ -13,6 +13,7 @@ import 'core/theme/design_tokens.dart';
 import 'core/theme/lvllo_brand.dart';
 import 'features/lvllo_platformer/firebase/lvllo_auth.dart';
 import 'features/lvllo_platformer/lvllo_lobby_screen.dart';
+import 'features/lvllo_platformer/login_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -97,7 +98,7 @@ class _EntryGate extends StatelessWidget {
           return const _Splash();
         }
         return snapshot.data == null
-            ? const _Login()
+            ? const LvlloPlatformerLoginScreen()
             : const LvlloLobbyScreen();
       },
     );
@@ -128,89 +129,3 @@ class _Splash extends StatelessWidget {
   }
 }
 
-class _Login extends StatefulWidget {
-  const _Login();
-
-  @override
-  State<_Login> createState() => _LoginState();
-}
-
-class _LoginState extends State<_Login> {
-  bool loading = false;
-
-  Future<void> _signIn() async {
-    setState(() => loading = true);
-    try {
-      await LvlloPlatformerAuth.signInWithGoogle();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign in failed: $e')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: CosmicBackground(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(22),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: CosmicPanel(
-                glow: true,
-                padding: const EdgeInsets.fromLTRB(26, 30, 26, 26),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const LvlloBrandMark(size: 118),
-                    const SizedBox(height: 16),
-                    const Text('LVL LOOL', style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 4)),
-                    const SizedBox(height: 5),
-                    const Text('THE TROLL PLATFORMER', style: TextStyle(color: GameColors.accentBright, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
-                    const SizedBox(height: 34),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('READY TO RAGE?', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900)),
-                    ),
-                    const SizedBox(height: 7),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Enter a deterministic world of traps, timing and muscle memory.',
-                        style: TextStyle(color: GameColors.muted, fontSize: 12, height: 1.4),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    CosmicPrimaryButton(
-                      onPressed: loading ? null : _signIn,
-                      child: loading
-                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: GameColors.backgroundDeep))
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.login_rounded),
-                                SizedBox(width: 9),
-                                Text('SIGN IN WITH GOOGLE'),
-                              ],
-                            ),
-                    ),
-                    const SizedBox(height: 11),
-                    const Text(
-                      'Your progress and economy stay on this device/account.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: GameColors.muted, fontSize: 9),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
