@@ -1,4 +1,5 @@
 name: LVL LOOL Android QA and APK
+# Release signing secrets are required for the protected APK build.
 
 on:
   workflow_dispatch:
