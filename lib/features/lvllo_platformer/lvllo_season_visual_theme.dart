@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Unified visual language: geometry stays consistent; each season changes only its atmosphere and accents.
 class LvlloSeasonVisualTheme {
   const LvlloSeasonVisualTheme({
     required this.season,
