@@ -10,11 +10,13 @@ class LvlloArtBackdrop extends StatelessWidget {
     required this.child,
     this.showDevil = true,
     this.showGrid = true,
+    this.showPlatform = false,
   });
 
   final Widget child;
   final bool showDevil;
   final bool showGrid;
+  final bool showPlatform;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +39,7 @@ class LvlloArtBackdrop extends StatelessWidget {
             painter: _LvlloArtPainter(
               showDevil: showDevil,
               showGrid: showGrid,
+              showPlatform: showPlatform,
             ),
           ),
           child,
@@ -47,10 +50,11 @@ class LvlloArtBackdrop extends StatelessWidget {
 }
 
 class _LvlloArtPainter extends CustomPainter {
-  _LvlloArtPainter({required this.showDevil, required this.showGrid});
+  _LvlloArtPainter({required this.showDevil, required this.showGrid, required this.showPlatform});
 
   final bool showDevil;
   final bool showGrid;
+  final bool showPlatform;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -121,15 +125,17 @@ class _LvlloArtPainter extends CustomPainter {
     ], const Color(0xFF00BDEB));
 
     if (showDevil) {
-      final center = Offset(w * .5, h * .30);
+      final center = Offset(w * .5, h * .34);
       final glow = Paint()
         ..shader = RadialGradient(
           colors: const [Color(0x8A00E7FF), Color(0x0000E7FF)],
         ).createShader(Rect.fromCircle(center: center, radius: w * .27));
       canvas.drawCircle(center, w * .27, glow);
 
-      _drawDevil(canvas, center, w * .19);
-      _drawPlatform(canvas, Offset(w * .5, h * .49), w * .62);
+      _drawDevil(canvas, center, w * .145);
+      if (showPlatform) {
+        _drawPlatform(canvas, Offset(w * .5, h * .49), w * .62);
+      }
     }
 
     // Small floating shards.
@@ -216,5 +222,5 @@ class _LvlloArtPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LvlloArtPainter oldDelegate) =>
-      oldDelegate.showDevil != showDevil || oldDelegate.showGrid != showGrid;
+      oldDelegate.showDevil != showDevil || oldDelegate.showGrid != showGrid || oldDelegate.showPlatform != showPlatform;
 }
