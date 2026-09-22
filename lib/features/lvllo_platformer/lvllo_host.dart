@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/mini_game_contract.dart';
 import 'troll_game.dart';
-import '../../../../economy_manager.dart';
+import '../../economy_manager.dart';
 import 'troll_stage_plan.dart';
 
 class LvlloPlatformerHost extends StatefulWidget {
