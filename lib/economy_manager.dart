@@ -1,7 +1,17 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EconomyManager {
+  // Owner/test account: this single authenticated Google account bypasses
+  // progression locks so the full game can be QA-tested without changing
+  // the normal player economy.
+  static const String ownerTestEmail = 'love.dotk@hmail.com';
+
+  static bool isOwnerTestAccount() {
+    final email = FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase();
+    return email == ownerTestEmail;
+  }
   // LVL LOOL progression/economy: Season 1 is free. Each later
   // season becomes purchasable only after 70% of the previous season is
   // completed. These prices are the approved values and must not drift.
@@ -96,9 +106,10 @@ class EconomyManager {
 
   static Future<void> deductLife() async {
     final prefs = await SharedPreferences.getInstance();
-    final isVip = _isVipActive(prefs);
-    final maxLives = isVip ? vipMaxLives : normalMaxLives;
-    var lives = prefs.getInt('ld_lives') ?? maxLives;
+    final isOwner = isOwnerTestAccount();
+    final isVip = isOwner || _isVipActive(prefs);
+    final maxLives = isOwner ? 999 : (isVip ? vipMaxLives : normalMaxLives);
+    var lives = isOwner ? maxLives : (prefs.getInt('ld_lives') ?? maxLives);
 
     // Keep the stored value consistent with the currently active cap.
     if (lives > maxLives) {
@@ -183,7 +194,7 @@ class EconomyManager {
 
     // A normal account cannot keep the VIP-only 30-life capacity after VIP
     // has expired. Preserve the normal cap for the active economy state.
-    if (!isVip && lives > normalMaxLives) {
+    if (!isOwner && !isVip && lives > normalMaxLives) {
       lives = normalMaxLives;
       await prefs.setInt('ld_lives', lives);
     }
@@ -241,6 +252,7 @@ class EconomyManager {
       'gems': prefs.getInt('ld_gems') ?? 0,
       'unreadMail': unreadCount,
       'isVip': isVip,
+      'isOwnerTestAccount': isOwner,
     };
   }
 
@@ -351,6 +363,7 @@ class EconomyManager {
 
   static Future<bool> isSeasonUnlocked(int season) async {
     if (season < 1 || season > 6) return false;
+    if (isOwnerTestAccount()) return true;
     final prefs = await SharedPreferences.getInstance();
     final unlocked = prefs.getStringList(_unlockedSeasonsKey) ?? <String>['1'];
     if (!unlocked.contains('1')) {
@@ -379,6 +392,7 @@ class EconomyManager {
 
   static Future<bool> unlockSeason(int season) async {
     if (season < 2 || season > 6) return season == 1;
+    if (isOwnerTestAccount()) return true;
     if (await isSeasonUnlocked(season)) return true;
 
     final state = await seasonUnlockState(season);
