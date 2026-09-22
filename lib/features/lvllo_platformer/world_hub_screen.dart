@@ -18,13 +18,38 @@ class LvlloPlatformerHubScreen extends StatefulWidget {
 }
 
 class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
-  int _season = 6;
+  int _season = 1;
+  final Set<int> _unlockedSeasons = <int>{1};
+  Set<int> _completedStages = <int>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final completed = await EconomyManager.completedStageIds();
+    final unlocked = <int>{1};
+    for (var season = 2; season <= 6; season++) {
+      if (await EconomyManager.isSeasonUnlocked(season)) unlocked.add(season);
+    }
+    if (!mounted) return;
+    setState(() {
+      _completedStages = completed;
+      _unlockedSeasons
+        ..clear()
+        ..addAll(unlocked);
+      if (!_unlockedSeasons.contains(_season)) _season = 1;
+    });
+  }
 
   int get _startStage => _season == 6 ? 101 : ((_season - 1) * 20) + 1;
   int get _count => _season == 6 ? 75 : 20;
 
   Future<void> _openStage(int stageId) async {
     final plan = TrollStagePlan.fromStageId(stageId);
+    if (!_unlockedSeasons.contains(plan.season)) return;
     final start = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -50,7 +75,11 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
           maxRounds: 1,
           levelsPerMechanic: plan.levelsPerMechanic,
           mechanicOffset: plan.mechanicOffset,
-          onWin: (_) => Navigator.of(context).pop(),
+          onWin: (_) async {
+            await EconomyManager.processStageWin(stageId);
+            await _loadProgress();
+            if (context.mounted) Navigator.of(context).pop();
+          },
           onFail: () async {
             await EconomyManager.deductLife();
             if (context.mounted) Navigator.of(context).pop();
@@ -116,7 +145,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                         stageId: stageId,
                         difficulty: plan.difficulty,
                         mechanicId: plan.mechanicId,
-                        onTap: () => _openStage(stageId),
+                        onTap: _unlockedSeasons.contains(_season) ? () => _openStage(stageId) : null,
                       );
                     },
                     childCount: _count,
@@ -161,6 +190,67 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
     );
   }
 
+  Future<void> _handleSeasonTap(int season) async {
+    HapticFeedback.selectionClick();
+    if (_unlockedSeasons.contains(season)) {
+      setState(() => _season = season);
+      return;
+    }
+
+    final state = await EconomyManager.seasonUnlockState(season);
+    if (!mounted) return;
+    final eligible = state['eligible'] == true;
+    final cost = state['cost'] as int;
+    final completion = (state['previousCompletion'] as num).toDouble();
+    final previousSeason = season - 1;
+    final previousTotal = previousSeason == 6 ? 75 : 20;
+    final completed = (completion * previousTotal).round();
+    final required = (previousTotal * EconomyManager.nextSeasonCompletionRequired).ceil();
+    final gems = (await EconomyManager.checkEconomy())['gems'] as int? ?? 0;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: GameColors.backgroundDeep,
+        title: Row(
+          children: [
+            const Icon(Icons.lock_rounded, color: GameColors.warning),
+            const SizedBox(width: 8),
+            Text('SEASON $season LOCKED', style: const TextStyle(fontWeight: FontWeight.w900)),
+          ],
+        ),
+        content: Text(
+          eligible
+              ? 'Complete $required/$previousTotal stages in Season $previousSeason to unlock access for $cost Gems.\n\nYour Gems: $gems.'
+              : 'Complete at least $required/$previousTotal stages in Season $previousSeason first.\n\nProgress: $completed/$previousTotal.',
+          style: const TextStyle(color: GameColors.textSoft, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('CLOSE'),
+          ),
+          if (eligible)
+            FilledButton.icon(
+              onPressed: gems >= cost
+                  ? () async {
+                      final ok = await EconomyManager.unlockSeason(season);
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
+                      if (ok) {
+                        await _loadProgress();
+                        if (mounted) setState(() => _season = season);
+                      }
+                    }
+                  : null,
+              icon: const Icon(Icons.diamond_rounded, size: 17),
+              label: Text('UNLOCK • $cost'),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _seasonTabs() {
     return SizedBox(
       height: 74,
@@ -174,10 +264,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
           final count = season == 6 ? 75 : 20;
           final selected = season == _season;
           return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _season = season);
-            },
+            onTap: () => _handleSeasonTap(season),
             child: AnimatedContainer(
               duration: GameDurations.normal,
               width: 108,
@@ -198,11 +285,18 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                     children: [
                       Icon(
                         season == 6 ? Icons.auto_awesome_rounded : Icons.public_rounded,
-                        color: selected ? GameColors.accentBright : GameColors.muted,
+                        color: selected
+                            ? GameColors.accentBright
+                            : _unlockedSeasons.contains(season)
+                                ? GameColors.muted
+                                : GameColors.surfaceStrong,
                         size: 17,
                       ),
                       const Spacer(),
-                      if (selected) const Icon(Icons.check_rounded, color: GameColors.accentBright, size: 14),
+                      if (selected)
+                        const Icon(Icons.check_rounded, color: GameColors.accentBright, size: 14)
+                      else if (!_unlockedSeasons.contains(season))
+                        const Icon(Icons.lock_rounded, color: GameColors.muted, size: 14),
                     ],
                   ),
                   const Spacer(),
@@ -250,16 +344,23 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                   style: const TextStyle(color: GameColors.muted, fontSize: 9, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 9),
+                Text(
+                  '${_completedStages.where((id) => id >= _startStage && id < _startStage + _count).length}/$_count COMPLETED',
+                  style: const TextStyle(color: GameColors.muted, fontSize: 8, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 7),
                 Row(
                   children: [
                     Expanded(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(99),
-                        child: const LinearProgressIndicator(
+                        child: LinearProgressIndicator(
                           minHeight: 5,
-                          value: 0,
+                          value: _count == 0
+                              ? 0
+                              : _completedStages.where((id) => id >= _startStage && id < _startStage + _count).length / _count,
                           backgroundColor: GameColors.surfaceStrong,
-                          valueColor: AlwaysStoppedAnimation(GameColors.accent),
+                          valueColor: const AlwaysStoppedAnimation(GameColors.accent),
                         ),
                       ),
                     ),
