@@ -527,8 +527,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       ),
     );
   }
-
-
+}
 
 class _LifeHud extends StatefulWidget {
   const _LifeHud();
