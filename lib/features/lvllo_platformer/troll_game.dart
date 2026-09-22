@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import '../../../../economy_manager.dart';
 import 'troll_engine.dart';
+import 'lvllo_season_visual_theme.dart';
 import '../../../../core/navigation/game_orientation.dart';
 
 class TrollGame extends StatefulWidget {
@@ -17,6 +18,7 @@ class TrollGame extends StatefulWidget {
     this.mechanicOffset = 0,
     this.stageSeedOverride,
     this.onFail,
+    this.stageId = 1,
   });
   final void Function(int score) onWin;
   final VoidCallback? onFail;
@@ -25,6 +27,7 @@ class TrollGame extends StatefulWidget {
   final int levelsPerMechanic;
   final int mechanicOffset;
   final int? stageSeedOverride;
+  final int stageId;
 
   @override
   State<TrollGame> createState() => _TrollGameState();
@@ -126,7 +129,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   child: SizedBox.expand(
                     child: ClipRect(
                       child: CustomPaint(
-                        painter: _TrollPainter(_engine),
+                        painter: _TrollPainter(_engine, widget.stageId),
                         size: Size.infinite,
                       ),
                     ),
@@ -381,8 +384,11 @@ class _LifeHudState extends State<_LifeHud> {
   }
 }
 class _TrollPainter extends CustomPainter {
-  _TrollPainter(this.engine);
+  _TrollPainter(this.engine, this.stageId);
   final TrollEngine engine;
+  final int stageId;
+
+  LvlloSeasonVisualTheme get theme => LvlloSeasonVisualTheme.forStage(stageId);
 
   @override
   void paint(Canvas canvas, Size size) {
