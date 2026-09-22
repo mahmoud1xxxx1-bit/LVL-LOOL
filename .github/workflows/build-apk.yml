@@ -1,4 +1,4 @@
-name: LVL LOOL Android APK
+name: LVL LOOL Android QA and APK
 
 on:
   workflow_dispatch:
@@ -6,31 +6,54 @@ on:
     branches: [main]
 
 jobs:
-  build-apk:
+  qa-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.1.0'
+
       - name: Flutter dependencies
         run: flutter pub get
+
+      - name: Verify forbidden legacy references
+        shell: bash
+        run: |
+          if grep -RniE '3minutes|level_devil' lib android pubspec.yaml .firebaserc; then
+            echo "Forbidden legacy reference found."
+            exit 1
+          fi
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Flutter tests
+        run: flutter test --reporter expanded
+
       - name: Build release APK
         run: flutter build apk --release
+
       - name: Verify APK
-        run: test -s build/app/outputs/flutter-apk/app-release.apk
+        run: |
+          test -s build/app/outputs/flutter-apk/app-release.apk
+          unzip -t build/app/outputs/flutter-apk/app-release.apk >/dev/null
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
