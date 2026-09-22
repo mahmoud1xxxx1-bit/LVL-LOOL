@@ -385,7 +385,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               children: [
                 const Icon(Icons.favorite_rounded, color: Color(0xFFFF5478), size: 20),
                 const SizedBox(width: 8),
-                Text('\$_livesRemaining / \$_maxLives LIVES REMAINING', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                Text('$_livesRemaining / $_maxLives LIVES REMAINING', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
               ],
             ),
           ),
