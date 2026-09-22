@@ -231,54 +231,36 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
-            // Mobile virtual controls
+            // Mobile controls: the entire right half of the playfield is the jump zone.
+            // The left/right movement uses a compact directional gear at bottom-left.
             Positioned(
-              left: 0,
               right: 0,
+              bottom: 0,
+              width: MediaQuery.sizeOf(context).width * 0.5,
+              height: MediaQuery.sizeOf(context).height * 0.5,
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (_) {
+                  if (_paused || _deathVisible || _victoryVisible) return;
+                  HapticFeedback.lightImpact();
+                  _engine.jumping = true;
+                },
+                onPointerUp: (_) => _engine.jumping = false,
+                onPointerCancel: (_) => _engine.jumping = false,
+                child: const SizedBox.expand(),
+              ),
+            ),
+
+            Positioned(
+              left: 18,
               bottom: 18,
               child: SafeArea(
                 top: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        children: [
-                          _buildJoypadButton(
-                            icon: Icons.chevron_left_rounded,
-                            onDown: () {
-                              HapticFeedback.selectionClick();
-                              _engine.movingLeft = true;
-                            },
-                            onUp: () => _engine.movingLeft = false,
-                          ),
-                          const SizedBox(width: 10),
-                          _buildJoypadButton(
-                            icon: Icons.chevron_right_rounded,
-                            onDown: () {
-                              HapticFeedback.selectionClick();
-                              _engine.movingRight = true;
-                            },
-                            onUp: () => _engine.movingRight = false,
-                          ),
-                        ],
-                      ),
-                      _buildJoypadButton(
-                        icon: Icons.keyboard_arrow_up_rounded,
-                        onDown: () {
-                          HapticFeedback.lightImpact();
-                          _engine.jumping = true;
-                        },
-                        onUp: () {},
-                        primary: true,
-                      ),
-                    ],
-                  ),
-                ),
+                right: false,
+                child: _buildDirectionalGear(),
               ),
             ),
+
 
             if (_deathVisible)
               _buildDeathOverlay(),
@@ -483,47 +465,70 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildJoypadButton({
+  Widget _buildDirectionalGear() {
+    return Container(
+      width: 126,
+      height: 64,
+      decoration: BoxDecoration(
+        color: const Color(0xB80A1124),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0x445CF5FF), width: 1.2),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 16, spreadRadius: 1),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildGearDirection(
+            icon: Icons.chevron_left_rounded,
+            onDown: () {
+              if (_paused || _deathVisible || _victoryVisible) return;
+              HapticFeedback.selectionClick();
+              _engine.movingLeft = true;
+            },
+            onUp: () => _engine.movingLeft = false,
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: const Color(0x224FFFFFF),
+          ),
+          _buildGearDirection(
+            icon: Icons.chevron_right_rounded,
+            onDown: () {
+              if (_paused || _deathVisible || _victoryVisible) return;
+              HapticFeedback.selectionClick();
+              _engine.movingRight = true;
+            },
+            onUp: () => _engine.movingRight = false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGearDirection({
     required IconData icon,
     required VoidCallback onDown,
     required VoidCallback onUp,
-    bool primary = false,
   }) {
     return Listener(
+      behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => onDown(),
       onPointerUp: (_) => onUp(),
       onPointerCancel: (_) => onUp(),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 90),
-        width: primary ? 82 : 72,
-        height: primary ? 82 : 72,
-        decoration: BoxDecoration(
-          gradient: primary
-              ? const LinearGradient(
-                  colors: [Color(0xFF5CF5FF), Color(0xFF7A5CFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: primary ? null : const Color(0xCC0A1124),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: primary ? const Color(0x885CF5FF) : const Color(0x33FFFFFF),
-            width: 1.5,
-          ),
-          boxShadow: primary
-              ? const [BoxShadow(color: Color(0x445CF5FF), blurRadius: 22)]
-              : null,
-        ),
-        child: Icon(
-          icon,
-          color: primary ? const Color(0xFF04101D) : Colors.white70,
-          size: primary ? 40 : 36,
+      child: SizedBox(
+        width: 52,
+        height: 56,
+        child: Center(
+          child: Icon(icon, color: Colors.white, size: 34),
         ),
       ),
     );
   }
-}
+
+
 
 class _LifeHud extends StatefulWidget {
   const _LifeHud();
