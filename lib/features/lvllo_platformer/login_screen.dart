@@ -38,9 +38,48 @@ class _LvlloPlatformerLoginScreenState extends State<LvlloPlatformerLoginScreen>
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: const Color(0xFF11162F),
-          content: Text('SIGN IN FAILED\n$error'),
-          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          backgroundColor: const Color(0xFF160D25),
+          elevation: 12,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0x88D044FF)),
+          ),
+          content: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFFF5C8A),
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: Color(0xFFEAF0FF),
+                      fontSize: 11,
+                      height: 1.35,
+                    ),
+                    children: [
+                      const TextSpan(
+                        text: 'SIGN IN FAILED\\n',
+                        style: TextStyle(
+                          color: Color(0xFFFF6F9C),
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: .8,
+                        ),
+                      ),
+                      TextSpan(text: error.toString()),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 6),
         ),
       );
     }
