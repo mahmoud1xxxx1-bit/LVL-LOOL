@@ -105,6 +105,7 @@ class EconomyManager {
   }
 
   static Future<void> deductLife() async {
+    if (isOwnerTestAccount()) return;
     final prefs = await SharedPreferences.getInstance();
     final isOwner = isOwnerTestAccount();
     final isVip = isOwner || _isVipActive(prefs);
@@ -188,9 +189,10 @@ class EconomyManager {
     final prefs = await SharedPreferences.getInstance();
     await _ensureVipDailyMail(prefs);
 
-    final isVip = _isVipActive(prefs);
-    final maxLives = isVip ? vipMaxLives : normalMaxLives;
-    var lives = prefs.getInt('ld_lives') ?? maxLives;
+    final isOwner = isOwnerTestAccount();
+    final isVip = isOwner || _isVipActive(prefs);
+    final maxLives = isOwner ? 999 : (isVip ? vipMaxLives : normalMaxLives);
+    var lives = isOwner ? maxLives : (prefs.getInt('ld_lives') ?? maxLives);
 
     // A normal account cannot keep the VIP-only 30-life capacity after VIP
     // has expired. Preserve the normal cap for the active economy state.
@@ -201,7 +203,7 @@ class EconomyManager {
 
     int? targetTime;
 
-    if (!isVip && lives < normalMaxLives) {
+    if (!isOwner && !isVip && lives < normalMaxLives) {
       int startedAt = prefs.getInt('ld_refill_started_at') ?? 0;
       int refillMinutes = prefs.getInt('ld_refill_minutes') ?? 0;
 
