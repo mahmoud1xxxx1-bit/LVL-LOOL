@@ -453,7 +453,7 @@ class _TrollPainter extends CustomPainter {
       paint.style = PaintingStyle.fill;
       // Label
       final tp = TextPainter(
-        text: const TextSpan(
+        text: TextSpan(
           text: '⚡',
           style: TextStyle(fontSize: 18, color: theme.accentBright),
         ),
