@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase/lvllo_auth.dart';
 import '../../core/theme/lvllo_art_backdrop.dart';
+import 'lvllo_lobby_screen.dart';
 
 class LvlloPlatformerLoginScreen extends StatefulWidget {
   const LvlloPlatformerLoginScreen({super.key});
@@ -23,7 +24,7 @@ class _LvlloPlatformerLoginScreenState extends State<LvlloPlatformerLoginScreen>
 
   void _navigateToHome() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => SeasonsMenuScreen()),
+      MaterialPageRoute(builder: (_) => LvlloLobbyScreen()),
     );
   }
 
