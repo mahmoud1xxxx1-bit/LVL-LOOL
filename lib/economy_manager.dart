@@ -2,6 +2,14 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EconomyManager {
+  // LVL LOOL progression/economy: Season 1 is free. Each later
+  // season becomes purchasable only after 70% of the previous season is
+  // completed. These prices are the approved values and must not drift.
+  static const List<int> seasonUnlockCosts = <int>[0, 1500, 9000, 22500, 42000, 75000];
+  static const double nextSeasonCompletionRequired = 0.70;
+  static const String _completedStagesKey = 'lvllo_completed_stages';
+  static const String _unlockedSeasonsKey = 'lvllo_unlocked_seasons';
+
   static const int normalMaxLives = 10;
   static const int vipMaxLives = 30;
   static const int rewardedLifeDailyLimit = 10;
@@ -282,50 +290,111 @@ class EconomyManager {
     }
   }
 
-  static Future<Map<String, dynamic>> processWin(int round) async {
+  static Future<Map<String, dynamic>> processStageWin(int stageId) async {
+    if (stageId < 1 || stageId > 175) {
+      throw ArgumentError.value(stageId, 'stageId');
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    final completed =
-        prefs.getStringList('ld_completed_rounds') ?? <String>[];
-    final roundStr = round.toString();
-    final isFirst = !completed.contains(roundStr);
-    final diff = (round - 1) % 3;
+    final completed = prefs.getStringList(_completedStagesKey) ?? <String>[];
+    final key = stageId.toString();
+    final isFirstClear = !completed.contains(key);
 
-    int gems = 0;
-    int gold = 0;
+    final positionInRewardCycle = (stageId - 1) % 3;
+    final gems = positionInRewardCycle == 0
+        ? 1
+        : positionInRewardCycle == 1
+            ? 3
+            : 5;
+    final replayGold = positionInRewardCycle == 0
+        ? 100
+        : positionInRewardCycle == 1
+            ? 250
+            : 500;
 
-    if (isFirst) {
-      gems = diff == 0
-          ? 1
-          : diff == 1
-              ? 3
-              : 5;
-      completed.add(roundStr);
-      await prefs.setStringList('ld_completed_rounds', completed);
+    if (isFirstClear) {
+      completed.add(key);
+      await prefs.setStringList(_completedStagesKey, completed);
+      await prefs.setInt('ld_gems', (prefs.getInt('ld_gems') ?? 0) + gems);
     } else {
-      gold = diff == 0
-          ? 100
-          : diff == 1
-              ? 250
-              : 500;
+      await prefs.setInt('ld_gold', (prefs.getInt('ld_gold') ?? 0) + replayGold);
     }
 
-    if (gems > 0) {
-      await prefs.setInt(
-        'ld_gems',
-        (prefs.getInt('ld_gems') ?? 0) + gems,
-      );
-    }
-    if (gold > 0) {
-      await prefs.setInt(
-        'ld_gold',
-        (prefs.getInt('ld_gold') ?? 0) + gold,
-      );
-    }
-
+    // Keep the first-clear/replay result explicit for the victory UI.
     return {
-      'gems': gems,
-      'gold': gold,
-      'isFirst': isFirst,
+      'stageId': stageId,
+      'isFirst': isFirstClear,
+      'gems': isFirstClear ? gems : 0,
+      'gold': isFirstClear ? 0 : replayGold,
     };
   }
+
+  static Future<Map<String, dynamic>> processWin(int round) async {
+    // Compatibility for existing callers. New gameplay should pass the
+    // global stage ID through processStageWin.
+    return processStageWin(round);
+  }
+
+  static Future<Set<int>> completedStageIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_completedStagesKey) ?? <String>[];
+    return raw.map(int.tryParse).whereType<int>().toSet();
+  }
+
+  static Future<int> seasonCompletedCount(int season) async {
+    if (season < 1 || season > 6) return 0;
+    final completed = await completedStageIds();
+    final start = season == 6 ? 101 : ((season - 1) * 20) + 1;
+    final count = season == 6 ? 75 : 20;
+    return completed.where((id) => id >= start && id < start + count).length;
+  }
+
+  static Future<bool> isSeasonUnlocked(int season) async {
+    if (season < 1 || season > 6) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final unlocked = prefs.getStringList(_unlockedSeasonsKey) ?? <String>['1'];
+    if (!unlocked.contains('1')) {
+      unlocked.add('1');
+      await prefs.setStringList(_unlockedSeasonsKey, unlocked);
+    }
+    return unlocked.contains(season.toString());
+  }
+
+  static Future<Map<String, dynamic>> seasonUnlockState(int season) async {
+    final unlocked = await isSeasonUnlocked(season);
+    if (season <= 1) {
+      return {'unlocked': true, 'eligible': true, 'cost': 0, 'previousCompletion': 1.0};
+    }
+
+    final previousCount = await seasonCompletedCount(season - 1);
+    final previousTotal = season - 1 == 6 ? 75 : 20;
+    final completion = previousTotal == 0 ? 0.0 : previousCount / previousTotal;
+    return {
+      'unlocked': unlocked,
+      'eligible': completion >= nextSeasonCompletionRequired,
+      'cost': seasonUnlockCosts[season - 1],
+      'previousCompletion': completion,
+    };
+  }
+
+  static Future<bool> unlockSeason(int season) async {
+    if (season < 2 || season > 6) return season == 1;
+    if (await isSeasonUnlocked(season)) return true;
+
+    final state = await seasonUnlockState(season);
+    if (state['eligible'] != true) return false;
+
+    final cost = state['cost'] as int;
+    final prefs = await SharedPreferences.getInstance();
+    final gems = prefs.getInt('ld_gems') ?? 0;
+    if (gems < cost) return false;
+
+    await prefs.setInt('ld_gems', gems - cost);
+    final unlocked = prefs.getStringList(_unlockedSeasonsKey) ?? <String>['1'];
+    if (!unlocked.contains(season.toString())) unlocked.add(season.toString());
+    await prefs.setStringList(_unlockedSeasonsKey, unlocked);
+    return true;
+  }
+
+
 }
