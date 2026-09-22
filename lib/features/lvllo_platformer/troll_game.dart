@@ -794,7 +794,7 @@ class _TrollPainter extends CustomPainter {
 
   void _drawPlatform(Canvas canvas, RectD rect, bool timed, double opacity) {
     final r = RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(5));
-    final a = opacity.clamp(0.18, 1.0);
+    final a = opacity.clamp(0.18, 1.0).toDouble();
     final paint = Paint()..color = theme.platform.withOpacity(a);
     canvas.drawRRect(r, paint);
 
