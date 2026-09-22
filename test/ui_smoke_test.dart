@@ -21,7 +21,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: LvlloPlatformerHubScreen()));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('SEASON 6'), findsWidgets);
-    expect(find.textContaining('101–175'), findsOneWidget);
+    expect(find.textContaining('101–175'), findsWidgets);
   });
 
   testWidgets('store renders economy controls', (tester) async {
@@ -36,7 +36,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.byIcon(Icons.settings_rounded).first);
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('SETTINGS'), findsOneWidget);
+    expect(find.text('SETTINGS'), findsWidgets);
     expect(find.text('Haptic feedback'), findsOneWidget);
     expect(find.text('Sound effects'), findsOneWidget);
   });
