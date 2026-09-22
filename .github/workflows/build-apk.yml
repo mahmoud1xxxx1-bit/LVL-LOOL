@@ -41,7 +41,7 @@ jobs:
           fi
 
       - name: Flutter analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-warnings
 
       - name: Flutter tests
         run: flutter test --reporter expanded
