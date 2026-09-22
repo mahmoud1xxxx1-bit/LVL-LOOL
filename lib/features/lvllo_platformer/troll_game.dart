@@ -698,15 +698,15 @@ class _TrollPainter extends CustomPainter {
 
       if (inverted) {
         path
-          ..moveTo(lx, rect.y + rect.h - 5)
-          ..lineTo(mx, rect.y + rect.h - spikeH)
-          ..lineTo(rx, rect.y + rect.h - 5)
-          ..close();
-      } else {
-        path
           ..moveTo(lx, rect.y + 5)
           ..lineTo(mx, rect.y + spikeH)
           ..lineTo(rx, rect.y + 5)
+          ..close();
+      } else {
+        path
+          ..moveTo(lx, rect.y + rect.h - 5)
+          ..lineTo(mx, rect.y + rect.h - spikeH)
+          ..lineTo(rx, rect.y + rect.h - 5)
           ..close();
       }
 
@@ -715,11 +715,11 @@ class _TrollPainter extends CustomPainter {
 
       final edge = Path();
       if (inverted) {
-        edge.moveTo(mx, rect.y + rect.h - spikeH);
-        edge.lineTo(lx + 3, rect.y + rect.h - 6);
-      } else {
         edge.moveTo(mx, rect.y + spikeH);
         edge.lineTo(lx + 3, rect.y + 6);
+      } else {
+        edge.moveTo(mx, rect.y + rect.h - spikeH);
+        edge.lineTo(lx + 3, rect.y + rect.h - 6);
       }
       paint
         ..style = PaintingStyle.stroke
