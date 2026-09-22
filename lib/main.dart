@@ -11,7 +11,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/cosmic_background.dart';
 import 'core/theme/design_tokens.dart';
 import 'core/theme/lvllo_brand.dart';
-import 'features/lvllo_platformer/firebase/lvllo_platformer_auth.dart';
+import 'features/lvllo_platformer/firebase/lvllo_auth.dart';
 import 'features/lvllo_platformer/lvllo_lobby_screen.dart';
 import 'firebase_options.dart';
 

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase/lvllo_auth.dart';
-import '../../../../main_lvllo_platformer_app.dart';
 import '../../../../core/theme/lvllo_art_backdrop.dart';
 
 class LvlloPlatformerLoginScreen extends StatefulWidget {
