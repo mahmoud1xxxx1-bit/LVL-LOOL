@@ -145,7 +145,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                         stageId: stageId,
                         difficulty: plan.difficulty,
                         mechanicId: plan.mechanicId,
-                        onTap: _unlockedSeasons.contains(_season) ? () => _openStage(stageId) : null,
+                        onTap: () => _openStage(stageId),
                       );
                     },
                     childCount: _count,
