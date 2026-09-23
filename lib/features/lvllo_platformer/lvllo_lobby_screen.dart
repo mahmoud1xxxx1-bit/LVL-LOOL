@@ -10,6 +10,7 @@ import '../../core/theme/lvllo_brand.dart';
 import '../../core/theme/game_bottom_nav.dart';
 import '../../store_screen.dart';
 import 'world_hub_screen.dart';
+import 'season7_prototype_screen.dart';
 import '../../economy_manager.dart';
 
 class LvlloLobbyScreen extends StatefulWidget {
@@ -208,6 +209,18 @@ class _LvlloLobbyScreenState extends State<LvlloLobbyScreen> {
       const Text('YOUR JOURNEY', style: TextStyle(color: GameColors.muted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
       const SizedBox(height: 10),
       _journeyTile(icon: Icons.public_rounded, title: 'WORLDS', subtitle: 'Explore all 175 stages', value: '6 WORLDS', onTap: _openWorlds),
+      const SizedBox(height: 9),
+      _journeyTile(
+        icon: Icons.auto_awesome_rounded,
+        title: 'SEASON 7 PROTOTYPE',
+        subtitle: 'Level 1 • The Fake Path',
+        value: 'TEST',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Season7PrototypeScreen(),
+          ),
+        ),
+      ),
       const SizedBox(height: 9),
       _journeyTile(icon: Icons.storefront_rounded, title: 'STORE', subtitle: 'Lives, gems and rewards', value: 'SHOP', onTap: () => _selectTab(2)),
       const SizedBox(height: 9),
