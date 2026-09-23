@@ -491,8 +491,8 @@ class _Season7PreviewPainter extends CustomPainter {
 
     final rock = Paint()..color = const Color(0xFF111B38);
     final edge = Paint()..color = const Color(0xFF263A67);
-    final cyan = Paint()..color = const Color(0xFF35D8FF);
-    final magenta = Paint()..color = const Color(0xFFE044FF);
+    final cyan = const Color(0xFF35D8FF);
+    final magenta = const Color(0xFFE044FF);
     final danger = Paint()..color = const Color(0xFFFF3E69);
     final player = Paint()..color = const Color(0xFF62F4D7);
 
@@ -503,7 +503,7 @@ class _Season7PreviewPainter extends CustomPainter {
       );
       canvas.drawRRect(r, rock);
       canvas.drawRect(Rect.fromLTWH(x, y, pw, 4), edge);
-      canvas.drawRect(Rect.fromLTWH(x + 4, y, pw - 8, 2), cyan);
+      canvas.drawRect(Rect.fromLTWH(x + 4, y, pw - 8, 2), Paint()..color = cyan);
     }
 
     void spikes(double x, double y, double sw) {
@@ -552,9 +552,9 @@ class _Season7PreviewPainter extends CustomPainter {
     canvas.drawPath(hanging, danger);
 
     // Key.
-    canvas.drawCircle(Offset(w * .66, h * .54), 7, cyan);
-    canvas.drawRect(Rect.fromLTWH(w * .66, h * .53, 27, 4), cyan);
-    canvas.drawRect(Rect.fromLTWH(w * .68, h * .57, 4, 8), cyan);
+    canvas.drawCircle(Offset(w * .66, h * .54), 7, Paint()..color = cyan);
+    canvas.drawRect(Rect.fromLTWH(w * .66, h * .53, 27, 4), Paint()..color = cyan);
+    canvas.drawRect(Rect.fromLTWH(w * .68, h * .57, 4, 8), Paint()..color = cyan);
 
     // Goal door.
     final door = Rect.fromLTWH(w * .84, h * .36, w * .10, h * .23);
