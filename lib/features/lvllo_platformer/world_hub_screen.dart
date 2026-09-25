@@ -264,7 +264,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                     ),
                   ),
                 ),
-              )
+              ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
                 sliver: SliverGrid(
