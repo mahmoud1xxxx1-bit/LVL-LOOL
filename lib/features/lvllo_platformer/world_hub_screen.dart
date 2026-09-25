@@ -25,6 +25,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
   Set<int> _completedStages = <int>{};
   int _gold = 0;
   int _rp = 0;
+  bool _ownerTestMode = false;
 
   @override
   void initState() {
@@ -34,6 +35,10 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
 
   Future<void> _loadProgress() async {
     final completed = await EconomyManager.completedStageIds();
+    final economy = await EconomyManager.checkEconomy();
+    final ownerTestMode = economy['isOwnerTestAccount'] == true
+        ? await EconomyManager.isOwnerTestModeEnabled()
+        : false;
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
@@ -50,7 +55,16 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
     if (!mounted) return;
     setState(() {
       _completedStages = completed;
+      _ownerTestMode = ownerTestMode;
     });
+  }
+
+  Future<void> _toggleOwnerTestMode(bool enabled) async {
+    if (!EconomyManager.isOwnerTestAccount()) return;
+    final changed = await EconomyManager.setOwnerTestModeEnabled(enabled);
+    if (!changed || !mounted) return;
+    setState(() => _ownerTestMode = enabled);
+    HapticFeedback.mediumImpact();
   }
 
   int get _startStage => 101;
@@ -184,6 +198,46 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                   ),
                 ),
               ),
+
+              if (EconomyManager.isOwnerTestAccount())
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  sliver: SliverToBoxAdapter(
+                    child: CosmicPanel(
+                      glow: _ownerTestMode,
+                      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _ownerTestMode ? GameColors.accent.withOpacity(.14) : GameColors.surfaceStrong,
+                              border: Border.all(color: _ownerTestMode ? GameColors.accentBright : GameColors.muted.withOpacity(.3)),
+                            ),
+                            child: Icon(Icons.science_rounded, color: _ownerTestMode ? GameColors.accentBright : GameColors.muted),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('OWNER QA MODE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+                                SizedBox(height: 3),
+                                Text('No deaths • 999 lives • test all 75 stages + TEST STAGE 01', style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: _ownerTestMode,
+                            onChanged: _toggleOwnerTestMode,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
               // Isolated visual/gameplay prototype. It does not touch the existing 75 stages.
               SliverPadding(
