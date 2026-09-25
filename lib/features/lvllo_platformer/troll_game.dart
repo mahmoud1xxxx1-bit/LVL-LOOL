@@ -61,6 +61,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   int _lastReportedTime = 0;
   int _duelStartTime = 0;
   bool _duelTimeout = false;
+  bool _ownerTestMode = false;
 
   @override
   void initState() {
@@ -74,11 +75,28 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       stageSeedOverride: widget.duelSeed ?? widget.stageSeedOverride,
       testStageMode: widget.testStage,
     );
+    TrollEngine.godMode = false;
+    _syncOwnerTestMode();
     GameOrientation.enterGame();
     _duelStartTime = DateTime.now().millisecondsSinceEpoch;
     _ticker = createTicker(_onTick)..start();
   }
 
+
+  Future<void> _syncOwnerTestMode() async {
+    final enabled = await EconomyManager.isOwnerTestModeEnabled();
+    if (!mounted) return;
+    _ownerTestMode = enabled;
+    TrollEngine.godMode = enabled;
+    if (enabled) {
+      final economy = await EconomyManager.checkEconomy();
+      if (!mounted) return;
+      setState(() {
+        _livesRemaining = economy['lives'] as int? ?? 999;
+        _maxLives = economy['maxLives'] as int? ?? 999;
+      });
+    }
+  }
 
   void _onTick(Duration elapsed) {
     if (_lastTime == Duration.zero) {
@@ -89,6 +107,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     _lastTime = elapsed;
 
     _engine.update(dt);
+    if (_ownerTestMode) TrollEngine.godMode = true;
     
     if (widget.duelMatchId != null && !_duelTimeout) {
       final nowTime = DateTime.now().millisecondsSinceEpoch;
@@ -181,7 +200,6 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       if (!mounted) return;
       setState(() { _victoryVisible = true; _stageReward = {'gold': 0, 'gems': 0}; });
       HapticFeedback.heavyImpact();
-      widget.onWin?.call(0);
       return;
     }
 
@@ -190,7 +208,6 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       await DuelService.updateProgress(widget.duelMatchId!, 1.0);
       setState(() { _victoryVisible = true; _stageReward = {'gold': 0, 'gems': 0}; });
       HapticFeedback.heavyImpact();
-      widget.onWin?.call(0);
       return;
     }
 
@@ -214,6 +231,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
+    TrollEngine.godMode = false;
     _ticker.dispose();
     _focusNode.dispose();
     GameOrientation.leaveGame();
@@ -398,21 +416,22 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     required Widget child,
     Color accent = const Color(0xFF5CF5FF),
   }) {
+    final maxHeight = MediaQuery.sizeOf(context).height - 40;
     return Positioned.fill(
       child: ColoredBox(
         color: const Color(0xD9020610),
         child: Center(
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 560),
-            margin: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-            padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
+            constraints: BoxConstraints(maxWidth: 560, maxHeight: maxHeight),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
             decoration: BoxDecoration(
               color: const Color(0xFF0A1429),
               borderRadius: BorderRadius.circular(26),
               border: Border.all(color: accent.withOpacity(.34)),
               boxShadow: [BoxShadow(color: accent.withOpacity(.16), blurRadius: 34, spreadRadius: 2)],
             ),
-            child: child,
+            child: SingleChildScrollView(child: child),
           ),
         ),
       ),
@@ -444,18 +463,41 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ],
             ),
           ),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: 20),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              if (canRetry) FilledButton.icon(onPressed: _retryAfterDeath, icon: const Icon(Icons.replay_rounded), label: const Text('RETRY')),
-              if (canRetry) const SizedBox(width: 10),
-              OutlinedButton.icon(onPressed: widget.onFail, icon: const Icon(Icons.map_rounded), label: const Text('MAP')),
+              if (canRetry)
+                FilledButton.icon(
+                  onPressed: _retryAfterDeath,
+                  icon: const Icon(Icons.replay_rounded),
+                  label: const Text('RETRY STAGE'),
+                ),
+              OutlinedButton.icon(
+                onPressed: widget.onFail,
+                icon: const Icon(Icons.map_rounded),
+                label: const Text('WORLD MAP'),
+              ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _retryAfterVictory() async {
+    _engine.retryCurrentRound();
+    if (!mounted) return;
+    setState(() {
+      _victoryVisible = false;
+      _rewardProcessed = false;
+      _stageReward = null;
+      _lastTime = Duration.zero;
+    });
+    _ticker.start();
+    _focusNode.requestFocus();
   }
 
   Widget _buildVictoryOverlay() {
@@ -464,39 +506,60 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     final gems = reward['gems'] as int? ?? 0;
     final gold = reward['gold'] as int? ?? 0;
     final isLastStage = widget.stageId >= 175;
+    final displayStage = widget.testStage ? 'TEST STAGE 01' : 'STAGE ' + (widget.stageId > 100 ? widget.stageId - 100 : widget.stageId).toString();
     return _buildOverlayCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.emoji_events_rounded, color: Color(0xFF5CF5FF), size: 58),
           const SizedBox(height: 10),
-          const Text('STAGE COMPLETE', style: TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          Text(widget.testStage ? 'TEST STAGE COMPLETE' : 'STAGE COMPLETE', style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           const SizedBox(height: 5),
-          Text('STAGE ${widget.stageId}', style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
+          Text(displayStage, style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 18),
-          Text(isFirst ? 'FIRST CLEAR REWARD' : 'REPLAY REWARD', style: const TextStyle(color: Color(0xFF8EA7C7), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.6)),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
-            decoration: BoxDecoration(color: const Color(0xFF071225), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x335CF5FF))),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(isFirst ? Icons.diamond_rounded : Icons.monetization_on_rounded, color: isFirst ? const Color(0xFF5CF5FF) : const Color(0xFFFFC857), size: 34),
-                const SizedBox(width: 12),
-                Text('+\${isFirst ? gems : gold}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-                const SizedBox(width: 8),
-                Text(isFirst ? 'GEMS' : 'GOLD', style: TextStyle(color: isFirst ? const Color(0xFF5CF5FF) : const Color(0xFFFFC857), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
-              ],
-            ),
+          Text(
+            widget.testStage ? 'QA TEST MODE • NO ECONOMY REWARD' : (isFirst ? 'FIRST CLEAR REWARD' : 'REPLAY REWARD'),
+            style: const TextStyle(color: Color(0xFF8EA7C7), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.6),
           ),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: 10),
+          if (widget.testStage)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              decoration: BoxDecoration(color: const Color(0xFF071225), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x335CF5FF))),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.science_rounded, color: Color(0xFF5CF5FF), size: 30),
+                  SizedBox(width: 10),
+                  Text('PROTOTYPE CLEARED', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+              decoration: BoxDecoration(color: const Color(0xFF071225), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x335CF5FF))),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(isFirst ? Icons.diamond_rounded : Icons.monetization_on_rounded, color: isFirst ? const Color(0xFF5CF5FF) : const Color(0xFFFFC857), size: 34),
+                  const SizedBox(width: 12),
+                  Text('+${isFirst ? gems : gold}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 8),
+                  Text(isFirst ? 'GEMS' : 'GOLD', style: TextStyle(color: isFirst ? const Color(0xFF5CF5FF) : const Color(0xFFFFC857), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 20),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              if (!isLastStage) FilledButton.icon(onPressed: widget.onNextStage ?? () => widget.onWin?.call(_engine.totalScore), icon: const Icon(Icons.arrow_forward_rounded), label: const Text('NEXT STAGE')),
-              if (!isLastStage) const SizedBox(width: 10),
-              OutlinedButton.icon(onPressed: widget.onFail, icon: const Icon(Icons.map_rounded), label: const Text('MAP')),
+              if (!widget.testStage && !isLastStage)
+                FilledButton.icon(onPressed: widget.onNextStage, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('NEXT STAGE')),
+              FilledButton.icon(onPressed: _retryAfterVictory, icon: const Icon(Icons.replay_rounded), label: const Text('REPLAY STAGE')),
+              OutlinedButton.icon(onPressed: widget.onFail, icon: const Icon(Icons.map_rounded), label: const Text('WORLD MAP')),
             ],
           ),
         ],
