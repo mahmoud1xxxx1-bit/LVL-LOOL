@@ -33,7 +33,7 @@ class _TrollDuelScreenState extends State<TrollDuelScreen> {
     } catch (e) {
       if (mounted) {
         setState(() { _isSearching = false; });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     }
   }
@@ -46,19 +46,29 @@ class _TrollDuelScreenState extends State<TrollDuelScreen> {
       
       if (data['status'] == 'playing') {
         _matchSub?.cancel();
-        _startMatch(data['stage'], data['seed'], _matchId!);
+        _startMatch(data['stageId'], data['seed'], _matchId!);
       }
     });
   }
 
   void _startMatch(int stageId, int seed, String matchId) async {
-    final result = await Navigator.of(context).pushReplacement(
+    await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => TrollGame(
           stageId: stageId,
-          
-          duelMatchId: matchId, // we need to add this to TrollGame!
-          duelSeed: seed, // we need to add this to TrollGame!
+          duelMatchId: matchId,
+          duelSeed: seed,
+          onWin: (_) async {
+             try {
+                await DuelService.claimDuelWin(matchId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('YOU WON! +1000 Gold!')));
+                }
+             } catch (e) {
+                // handle error
+             }
+             if (mounted) Navigator.of(context).pop();
+          },
         ),
       ),
     );

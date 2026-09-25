@@ -173,6 +173,15 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     _ticker.stop();
     if (_rewardProcessed) return;
     _rewardProcessed = true;
+    
+    if (widget.duelMatchId != null) {
+      if (!mounted) return;
+      setState(() { _victoryVisible = true; _stageReward = {'gold': 0, 'gems': 0}; });
+      HapticFeedback.heavyImpact();
+      widget.onWin?.call(0);
+      return;
+    }
+
     final reward = await EconomyManager.processStageWin(widget.stageId);
     final economy = await EconomyManager.checkEconomy();
     if (!mounted) return;

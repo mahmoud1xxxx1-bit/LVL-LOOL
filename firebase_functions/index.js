@@ -17,13 +17,19 @@ exports.findOrCreateDuel = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError('failed-precondition', 'Not enough gold');
         }
         
+        // Ensure user isn't already searching
+        const existingSearching = await transaction.get(db.collection('duels').where('status', '==', 'searching').where('player1', '==', uid).limit(1));
+        if (!existingSearching.empty) {
+            return { matchId: existingSearching.docs[0].id, status: 'searching' };
+        }
+        
         // Search for waiting match
         const waitingMatches = await transaction.get(db.collection('duels').where('status', '==', 'searching').limit(1));
         
         if (!waitingMatches.empty) {
-            // Join existing match
             const matchDoc = waitingMatches.docs[0];
             if (matchDoc.data().player1 !== uid) {
+                // Join existing match
                 transaction.update(userRef, { gold: admin.firestore.FieldValue.increment(-500) });
                 transaction.update(matchDoc.ref, {
                     player2: uid,
@@ -41,7 +47,7 @@ exports.findOrCreateDuel = functions.https.onCall(async (data, context) => {
             player1: uid,
             player2: null,
             status: 'searching',
-            stage: Math.floor(Math.random() * 75) + 101, // 101 to 175
+            stageId: Math.floor(Math.random() * 75) + 101, // 101 to 175
             seed: Math.floor(Math.random() * 1000000),
             startTime: null,
             p1Progress: 0,
@@ -50,6 +56,41 @@ exports.findOrCreateDuel = functions.https.onCall(async (data, context) => {
         });
         
         return { matchId: newMatchRef.id, status: 'searching' };
+    });
+});
+
+exports.updateDuelProgress = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+    const uid = context.auth.uid;
+    const { matchId, progress } = data;
+    
+    if (typeof progress !== 'number' || progress < 0 || progress > 1) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid progress value');
+    }
+    
+    // We can use a transaction or direct update. For performance on progress, we use update with precondition, or get then update.
+    // To strictly enforce no-backward progress without transaction: we can just use transaction.
+    return await db.runTransaction(async (transaction) => {
+        const matchRef = db.collection('duels').doc(matchId);
+        const matchDoc = await transaction.get(matchRef);
+        if (!matchDoc.exists) throw new functions.https.HttpsError('not-found', 'Match not found');
+        
+        const match = matchDoc.data();
+        if (match.status !== 'playing') return { success: false, reason: 'not playing' };
+        
+        if (match.player1 === uid) {
+            if (progress > (match.p1Progress || 0)) {
+                transaction.update(matchRef, { p1Progress: progress });
+            }
+        } else if (match.player2 === uid) {
+            if (progress > (match.p2Progress || 0)) {
+                transaction.update(matchRef, { p2Progress: progress });
+            }
+        } else {
+            throw new functions.https.HttpsError('permission-denied', 'Not in this match');
+        }
+        
+        return { success: true };
     });
 });
 
@@ -106,7 +147,6 @@ exports.claimDuelWin = functions.https.onCall(async (data, context) => {
 
 exports.resolveTimeout = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
-    const uid = context.auth.uid;
     const matchId = data.matchId;
     
     return await db.runTransaction(async (transaction) => {
@@ -116,7 +156,7 @@ exports.resolveTimeout = functions.https.onCall(async (data, context) => {
         
         const match = matchDoc.data();
         if (match.status !== 'playing') {
-            return { status: match.status }; // Already resolved
+            return { status: match.status }; 
         }
         
         const p1Progress = match.p1Progress || 0;
@@ -154,13 +194,13 @@ exports.resolveTimeout = functions.https.onCall(async (data, context) => {
     });
 });
 
-
 exports.claimSoloWin = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
     const uid = context.auth.uid;
     const stageId = data.stageId;
     
-    if (typeof stageId !== 'number' || stageId < 1 || stageId > 75) {
+    // Internal stage IDs for Season 6 are 101 to 175
+    if (typeof stageId !== 'number' || stageId < 101 || stageId > 175) {
         throw new functions.https.HttpsError('invalid-argument', 'Invalid stage');
     }
     

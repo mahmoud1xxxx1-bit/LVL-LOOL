@@ -34,14 +34,15 @@ class DuelService {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     
-    // To minimize writes, we only update progress via firestore directly
-    final doc = await _firestore.collection('duels').doc(matchId).get();
-    if (!doc.exists) return;
-    
-    final isPlayer1 = doc.data()?['player1'] == uid;
-    
-    await _firestore.collection('duels').doc(matchId).update({
-      isPlayer1 ? 'p1Progress' : 'p2Progress': progress,
-    });
+    // Server-authoritative progress update via Cloud Function
+    // This enforces progress cannot decrease and stays within 0..1
+    try {
+      await _functions.httpsCallable('updateDuelProgress').call({
+        'matchId': matchId, 
+        'progress': progress
+      });
+    } catch (e) {
+      // Ignored for fast telemetry
+    }
   }
 }

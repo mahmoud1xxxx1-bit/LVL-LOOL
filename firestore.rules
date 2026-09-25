@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only logged in users can do anything
+    match /{document=**} {
+      allow read, write: if false; // Default deny
+    }
+    
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Only server can write gold and rp
+      allow write: if false; 
+      
+      match /solo_claims/{claimId} {
+         allow read: if request.auth != null && request.auth.uid == userId;
+         allow write: if false; // Server writes claims
+      }
+    }
+    
+    match /duels/{duelId} {
+      // Allow read if user is one of the players (or if they are searching for a match, wait, matchmaking queue is a separate thing but we let the server handle searching)
+      // Actually, if the server handles finding a match, the user only needs to read their own matches.
+      allow read: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid);
+      
+      // Allow players to update THEIR OWN progress. Nothing else.
+      allow update: if request.auth != null
+        && (
+            (request.auth.uid == resource.data.player1 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['p1Progress'])) ||
+            (request.auth.uid == resource.data.player2 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['p2Progress']))
+        )
+        // Clamp bounds
+        && request.resource.data.p1Progress >= 0.0 && request.resource.data.p1Progress <= 1.0
+        && request.resource.data.p2Progress >= 0.0 && request.resource.data.p2Progress <= 1.0
+        // Prevent decreasing progress
+        && (request.resource.data.p1Progress >= resource.data.p1Progress || request.auth.uid != resource.data.player1)
+        && (request.resource.data.p2Progress >= resource.data.p2Progress || request.auth.uid != resource.data.player2);
+        
+      allow create, delete: if false; // Only server creates duels
+    }
+  }
+}
