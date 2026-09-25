@@ -5,7 +5,7 @@ name: LVL LOOL Android QA and APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, FINAL-FIX-SECURITY-2026-09-25]
 
 jobs:
   qa-build:
