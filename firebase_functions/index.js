@@ -13,7 +13,7 @@ const DUEL_LIMIT_MS = 180000;
 // Progress is server-capped. The client may report movement, but it can never
 // advance the stored value faster than this envelope. This prevents instant
 // completion/progress injection and keeps the reward decision server-side.
-const MAX_PROGRESS_PER_SECOND = 0.10;
+const MAX_PROGRESS_PER_SECOND = 0.20;
 const MIN_PROGRESS_UPDATE_MS = 750;
 const MIN_COMPLETION_MS = 10000;
 
