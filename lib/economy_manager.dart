@@ -8,6 +8,21 @@ class EconomyManager {
   // the normal player economy.
   static const String ownerTestEmail = 'love.dotk@gmail.com';
 
+  static const String ownerTestModeKey = 'lvllo_owner_test_mode';
+
+  static Future<bool> isOwnerTestModeEnabled() async {
+    if (!isOwnerTestAccount()) return false;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(ownerTestModeKey) ?? false;
+  }
+
+  static Future<bool> setOwnerTestModeEnabled(bool enabled) async {
+    if (!isOwnerTestAccount()) return false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(ownerTestModeKey, enabled);
+    return true;
+  }
+
   static bool isOwnerTestAccount() {
     try {
       final email = FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase();
@@ -109,12 +124,13 @@ class EconomyManager {
   }
 
   static Future<void> deductLife() async {
-    if (isOwnerTestAccount()) return;
+    if (await isOwnerTestModeEnabled()) return;
     final prefs = await SharedPreferences.getInstance();
     final isOwner = isOwnerTestAccount();
-    final isVip = isOwner || _isVipActive(prefs);
-    final maxLives = isOwner ? 999 : (isVip ? vipMaxLives : normalMaxLives);
-    var lives = isOwner ? maxLives : (prefs.getInt('ld_lives') ?? maxLives);
+    final ownerTestMode = isOwner && (prefs.getBool(ownerTestModeKey) ?? false);
+    final isVip = ownerTestMode || _isVipActive(prefs);
+    final maxLives = ownerTestMode ? 999 : (isVip ? vipMaxLives : normalMaxLives);
+    var lives = ownerTestMode ? maxLives : (prefs.getInt('ld_lives') ?? maxLives);
 
     // Keep the stored value consistent with the currently active cap.
     if (lives > maxLives) {
@@ -194,9 +210,10 @@ class EconomyManager {
     await _ensureVipDailyMail(prefs);
 
     final isOwner = isOwnerTestAccount();
-    final isVip = isOwner || _isVipActive(prefs);
-    final maxLives = isOwner ? 999 : (isVip ? vipMaxLives : normalMaxLives);
-    var lives = isOwner ? maxLives : (prefs.getInt('ld_lives') ?? maxLives);
+    final ownerTestMode = isOwner && (prefs.getBool(ownerTestModeKey) ?? false);
+    final isVip = ownerTestMode || _isVipActive(prefs);
+    final maxLives = ownerTestMode ? 999 : (isVip ? vipMaxLives : normalMaxLives);
+    var lives = ownerTestMode ? maxLives : (prefs.getInt('ld_lives') ?? maxLives);
 
     // A normal account cannot keep the VIP-only 30-life capacity after VIP
     // has expired. Preserve the normal cap for the active economy state.
@@ -259,6 +276,7 @@ class EconomyManager {
       'unreadMail': unreadCount,
       'isVip': isVip,
       'isOwnerTestAccount': isOwner,
+      'isOwnerTestMode': ownerTestMode,
     };
   }
 
