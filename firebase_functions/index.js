@@ -11,16 +11,24 @@ exports.findOrCreateDuel = functions.https.onCall(async (data, context) => {
         const userRef = db.collection('users').doc(uid);
         const userDoc = await transaction.get(userRef);
         const userData = userDoc.data() || { gold: 0, rp: 1000 };
-        const gold = userData.gold || 0;
         
-        if (gold < 500) {
-            throw new functions.https.HttpsError('failed-precondition', 'Not enough gold');
+        // If user already has an active duel
+        if (userData.activeDuel) {
+            const existingMatchRef = db.collection('duels').doc(userData.activeDuel);
+            const existingMatchDoc = await transaction.get(existingMatchRef);
+            if (existingMatchDoc.exists) {
+                const status = existingMatchDoc.data().status;
+                if (status === 'searching' || status === 'playing') {
+                    // Do not deduct gold, just return existing match
+                    return { matchId: existingMatchDoc.id, status: status };
+                }
+            }
+            // If the duel finished/timeout, clear it (it will be overwritten below)
         }
         
-        // Ensure user isn't already searching
-        const existingSearching = await transaction.get(db.collection('duels').where('status', '==', 'searching').where('player1', '==', uid).limit(1));
-        if (!existingSearching.empty) {
-            return { matchId: existingSearching.docs[0].id, status: 'searching' };
+        const gold = userData.gold || 0;
+        if (gold < 500) {
+            throw new functions.https.HttpsError('failed-precondition', 'Not enough gold');
         }
         
         // Search for waiting match
@@ -30,7 +38,7 @@ exports.findOrCreateDuel = functions.https.onCall(async (data, context) => {
             const matchDoc = waitingMatches.docs[0];
             if (matchDoc.data().player1 !== uid) {
                 // Join existing match
-                transaction.update(userRef, { gold: admin.firestore.FieldValue.increment(-500) });
+                transaction.set(userRef, { gold: admin.firestore.FieldValue.increment(-500), activeDuel: matchDoc.id }, { merge: true });
                 transaction.update(matchDoc.ref, {
                     player2: uid,
                     status: 'playing',
@@ -41,8 +49,9 @@ exports.findOrCreateDuel = functions.https.onCall(async (data, context) => {
         }
         
         // Create new match
-        transaction.update(userRef, { gold: admin.firestore.FieldValue.increment(-500) });
         const newMatchRef = db.collection('duels').doc();
+        transaction.set(userRef, { gold: admin.firestore.FieldValue.increment(-500), activeDuel: newMatchRef.id }, { merge: true });
+        
         transaction.set(newMatchRef, {
             player1: uid,
             player2: null,
@@ -78,13 +87,34 @@ exports.updateDuelProgress = functions.https.onCall(async (data, context) => {
         const match = matchDoc.data();
         if (match.status !== 'playing') return { success: false, reason: 'not playing' };
         
+        const now = admin.firestore.Timestamp.now();
+        const elapsed = now.seconds - match.startTime.seconds;
+        
         if (match.player1 === uid) {
-            if (progress > (match.p1Progress || 0)) {
-                transaction.update(matchRef, { p1Progress: progress });
+            const oldProg = match.p1Progress || 0;
+            const lastUpdate = match.p1LastUpdate ? match.p1LastUpdate.seconds : match.startTime.seconds;
+            const timeDiff = now.seconds - lastUpdate;
+            
+            if (progress > oldProg) {
+                // impossible jump check: max 20% progress per second
+                const maxAllowed = oldProg + (Math.max(1, timeDiff) * 0.20);
+                if (progress > maxAllowed && progress === 1.0 && timeDiff < 3) {
+                     // Speedhack detected!
+                     return { success: false, reason: 'impossible jump' };
+                }
+                transaction.update(matchRef, { p1Progress: Math.min(progress, maxAllowed), p1LastUpdate: now });
             }
         } else if (match.player2 === uid) {
-            if (progress > (match.p2Progress || 0)) {
-                transaction.update(matchRef, { p2Progress: progress });
+            const oldProg = match.p2Progress || 0;
+            const lastUpdate = match.p2LastUpdate ? match.p2LastUpdate.seconds : match.startTime.seconds;
+            const timeDiff = now.seconds - lastUpdate;
+            
+            if (progress > oldProg) {
+                const maxAllowed = oldProg + (Math.max(1, timeDiff) * 0.20);
+                if (progress > maxAllowed && progress === 1.0 && timeDiff < 3) {
+                     return { success: false, reason: 'impossible jump' };
+                }
+                transaction.update(matchRef, { p2Progress: Math.min(progress, maxAllowed), p2LastUpdate: now });
             }
         } else {
             throw new functions.https.HttpsError('permission-denied', 'Not in this match');
@@ -134,16 +164,18 @@ exports.claimDuelWin = functions.https.onCall(async (data, context) => {
         });
         
         const userRef = db.collection('users').doc(uid);
-        transaction.update(userRef, {
+        transaction.set(userRef, {
             gold: admin.firestore.FieldValue.increment(1000),
-            rp: admin.firestore.FieldValue.increment(30)
-        });
+            rp: admin.firestore.FieldValue.increment(30),
+            activeDuel: admin.firestore.FieldValue.delete()
+        }, { merge: true });
         
         if (opponentId) {
             const oppRef = db.collection('users').doc(opponentId);
-            transaction.update(oppRef, {
-                rp: admin.firestore.FieldValue.increment(-15)
-            });
+            transaction.set(oppRef, {
+                rp: admin.firestore.FieldValue.increment(-15),
+                activeDuel: admin.firestore.FieldValue.delete()
+            }, { merge: true });
         }
         
         return { success: true };
@@ -191,20 +223,22 @@ exports.resolveTimeout = functions.https.onCall(async (data, context) => {
         
         if (winnerId) {
             transaction.update(matchRef, { status: 'timeout_win', winner: winnerId });
-            transaction.update(db.collection('users').doc(winnerId), {
+            transaction.set(db.collection('users').doc(winnerId), {
                 gold: admin.firestore.FieldValue.increment(1000),
-                rp: admin.firestore.FieldValue.increment(30)
-            });
+                rp: admin.firestore.FieldValue.increment(30),
+                activeDuel: admin.firestore.FieldValue.delete()
+            }, { merge: true });
             if (loserId) {
-                transaction.update(db.collection('users').doc(loserId), {
-                    rp: admin.firestore.FieldValue.increment(-15)
-                });
+                transaction.set(db.collection('users').doc(loserId), {
+                    rp: admin.firestore.FieldValue.increment(-15),
+                    activeDuel: admin.firestore.FieldValue.delete()
+                }, { merge: true });
             }
             return { status: 'win', winner: winnerId };
         } else {
             transaction.update(matchRef, { status: 'draw', winner: 'none' });
-            if (match.player1) transaction.update(db.collection('users').doc(match.player1), { gold: admin.firestore.FieldValue.increment(350) });
-            if (match.player2) transaction.update(db.collection('users').doc(match.player2), { gold: admin.firestore.FieldValue.increment(350) });
+            if (match.player1) transaction.set(db.collection('users').doc(match.player1), { gold: admin.firestore.FieldValue.increment(350), activeDuel: admin.firestore.FieldValue.delete() }, { merge: true });
+            if (match.player2) transaction.set(db.collection('users').doc(match.player2), { gold: admin.firestore.FieldValue.increment(350), activeDuel: admin.firestore.FieldValue.delete() }, { merge: true });
             return { status: 'draw' };
         }
     });

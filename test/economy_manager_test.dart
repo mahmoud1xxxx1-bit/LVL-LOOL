@@ -26,7 +26,7 @@ void main() {
     expect(state['gems'], 400);
   });
 
-  test('first completion pays gems and replay pays gold', () async {
+  test('first completion pays gems and replay delegates gold to server', () async {
     var reward = await EconomyManager.processWin(1);
     expect(reward['isFirst'], true);
     expect(reward['gems'], 1);
@@ -35,7 +35,7 @@ void main() {
     reward = await EconomyManager.processWin(1);
     expect(reward['isFirst'], false);
     expect(reward['gems'], 0);
-    expect(reward['gold'], 100);
+    expect(reward['gold'], 0);
   });
 
   test('rewarded life respects max lives and daily cap', () async {
@@ -82,7 +82,7 @@ void main() {
     expect(reward['gems'], 3);
 
     reward = await EconomyManager.processStageWin(101);
-    expect(reward['gold'], 250);
+    expect(reward['gold'], 0);
   });
 
 }

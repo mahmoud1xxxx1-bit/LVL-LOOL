@@ -341,7 +341,7 @@ class EconomyManager {
       'stageId': stageId,
       'isFirst': isFirstClear,
       'gems': isFirstClear ? gems : 0,
-      'gold': isFirstClear ? 0 : replayGold,
+      'gold': 0, // Server handles solo gold now
     };
   }
 
