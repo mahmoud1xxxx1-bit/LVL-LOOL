@@ -1992,12 +1992,14 @@ class TrollEngine {
             rect: RectD(x, y, gs, gs),
             color: const Color(0xFFFF0000),
           ));
-        } else if (char == 'b') { // Hidden wall block
+        } else if (char == 'b') { // Invisible solid block
+          // Invisible Blocks must remain collidable while hidden.
+          // The player cannot see the block, but it still acts as real level geometry.
           entities.add(TrollEntity(
             id: 'b_${row}_${col}', type: TrollEntityType.block,
             rect: RectD(x, y, gs, gs),
             color: const Color(0xFF333333),
-            isSolid: false,
+            isSolid: true,
             isVisible: false,
           ));
         } else if (char == 'X') {
