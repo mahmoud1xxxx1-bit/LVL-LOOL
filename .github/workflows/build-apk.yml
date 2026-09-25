@@ -5,7 +5,7 @@ name: LVL LOOL Android QA and APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, FINAL-FIX-SECURITY-2026-09-25]
 
 jobs:
   qa-build:
@@ -33,6 +33,16 @@ jobs:
 
       - name: Flutter dependencies
         run: flutter pub get
+
+      - name: Validate Cloud Functions syntax
+        run: node --check firebase_functions/index.js
+
+      - name: Validate Firestore rules are default-deny for sensitive data
+        shell: bash
+        run: |
+          grep -q "allow write: if false" firestore.rules
+          grep -q "allow update: if false" firestore.rules
+          grep -q "allow create, delete: if false" firestore.rules
 
       - name: Verify forbidden legacy references
         shell: bash
