@@ -1703,60 +1703,64 @@ class TrollEngine {
                  'MThwomp': 2, 'Timed': 2, 'TSpy': 2, '2Spike': 2, 'JDrop': 2, 'RevCtrl': 1}));
 
     } else if (mechId == 21) {
-      // S6 Group 1 — Invisible Blocks (source-defined group)
+      // S6 Group 1 — Invisible Blocks: hidden geometry remains the core idea,
+      // but every difficulty also uses supporting traps for a complete route.
       final hiddenWidth = diff == 1 ? 3 : diff == 2 ? 4 : 5;
       currentCol = 18;
       for (int i = 0; i < (diff == 1 ? 5 : diff == 2 ? 6 : 8); i++) {
         addInvisibleBlocks(currentCol, hiddenWidth);
-        if (diff >= 2 && i.isEven) grid[12][currentCol + hiddenWidth] = 's';
-        currentCol += hiddenWidth + 5;
+        if (diff >= 2 && i.isEven && currentCol + hiddenWidth < mapCols) {
+          grid[12][currentCol + hiddenWidth] = 's';
+        }
+        currentCol += hiddenWidth + (diff == 1 ? 6 : 5);
       }
       runRecipe(recipe(diff == 1
-          ? {'Spike': 9, 'FFloor': 1}
+          ? {'FSolid': 3, 'Spike': 3, 'FFloor': 2, 'ASpike': 2}
           : diff == 2
-              ? {'Spike': 9, 'FFloor': 1, 'ESpike': 1}
-              : {'Spike': 10, 'FFloor': 2, 'ESpike': 1}));
+              ? {'FSolid': 3, 'ESpike': 3, 'ASpike': 3, 'FFloor': 2, 'Thwomp': 2}
+              : {'FSolid': 4, 'ESpike': 3, 'ASpike': 3, 'FFloor': 2, 'Thwomp': 2, 'Chain': 2}));
 
     } else if (mechId == 22) {
-      // S6 Group 2 — Shifting Floors (source-defined group)
+      // S6 Group 2 — Shifting Floors: moving/falling floor sections are the
+      // identity, supported by different secondary traps per difficulty.
       runRecipe(recipe(diff == 1
-          ? {'Spike': 8, 'FFloor': 3}
+          ? {'FFloor': 4, 'Spike': 3, 'Timed': 2, 'ASpike': 2}
           : diff == 2
-              ? {'Spike': 8, 'FFloor': 4, 'ASpike': 1}
-              : {'Spike': 9, 'FFloor': 5, 'ASpike': 2}));
+              ? {'FFloor': 4, 'ESpike': 3, 'JDrop': 3, 'ASpike': 2, 'Thwomp': 2}
+              : {'FFloor': 5, 'ESpike': 3, 'JDrop': 3, 'Chain': 2, 'MThwomp': 2, 'TSpy': 2}));
 
     } else if (mechId == 23) {
-      // S6 Group 3 — Runaway Door (source-defined group)
+      // S6 Group 3 — Runaway Door: the door must move, but the route is not
+      // a wall of repeated spikes. Supporting traps are deliberately varied.
       final moveDistance = diff == 1 ? 3 : diff == 2 ? 5 : 8;
       runRecipe(recipe(diff == 1
-          ? {'Spike': 11}
+          ? {'Spike': 4, 'FFloor': 2, 'ASpike': 2, 'Timed': 2, 'AggDoor': 1}
           : diff == 2
-              ? {'Spike': 11, 'FFloor': 2}
-              : {'Spike': 12, 'FFloor': 3}), addDoor: false);
+              ? {'Spike': 4, 'FFloor': 2, 'ESpike': 3, 'ASpike': 2, 'MThwomp': 2, 'AggDoor': 1}
+              : {'Spike': 4, 'FFloor': 3, 'ESpike': 3, 'ASpike': 2, 'MThwomp': 2, 'TSpy': 2, 'FDoor': 1}),
+        addDoor: false);
       addRunningDoor(kDoorClearance, moveDistance);
 
     } else if (mechId == 24) {
-      // S6 Group 4 — Friendly Spike (source-defined group)
-      // FriendSpike is represented as a non-lethal visual spike marker while
-      // the documented spike counts remain part of the stage recipe.
+      // S6 Group 4 — Friendly Spike: visual/friendly spikes are retained as
+      // the signature, while the actual route uses varied hazards.
       final friendCount = diff == 1 ? 3 : diff == 2 ? 5 : 6;
       currentCol = 18;
       for (int i = 0; i < friendCount; i++) {
         if (currentCol < mapCols) {
           grid[11][currentCol] = 'h';
-          currentCol += 6;
+          currentCol += diff == 1 ? 7 : 6;
         }
       }
       runRecipe(recipe(diff == 1
-          ? {'Spike': 8}
+          ? {'Spike': 3, 'Spring': 3, 'ASpike': 2, 'FFloor': 2, 'ESpike': 1}
           : diff == 2
-              ? {'Spike': 8, 'FFloor': 1}
-              : {'Spike': 10, 'FFloor': 1}));
+              ? {'Spike': 3, 'Spring': 3, 'ESpike': 3, 'FFloor': 2, 'JDrop': 2, 'ASpike': 2}
+              : {'Spike': 3, 'Spring': 3, 'ESpike': 3, 'FFloor': 2, 'JDrop': 2, 'MThwomp': 2, 'Chain': 2}));
 
     } else if (mechId == 25) {
-      // S6 Group 5 — Timed Platforms (new Season 6-only idea).
-      // This mechanic is intentionally distinct from the 20 established
-      // Season 1-5 ideas: platforms cycle between visible/solid and hidden.
+      // S6 Group 5 — Timed Platforms: timed platforms stay the main mechanic,
+      // with secondary traps creating a complete and varied final group.
       isIceLevel = false;
       currentCol = 18;
       final platformWidth = diff == 1 ? 5 : diff == 2 ? 4 : 3;
@@ -1785,6 +1789,20 @@ class TrollEngine {
 
         if (diff >= 2 && i.isOdd && currentCol + platformWidth + 2 < mapCols) {
           grid[12][currentCol + platformWidth + 2] = 's';
+        }
+
+        // Add secondary hazards between timed sections without replacing the
+        // timed-platform identity of the stage.
+        if (i % (diff == 1 ? 4 : 3) == 0) {
+          final supportCol = currentCol + platformWidth + 2;
+          if (supportCol + 4 < mapCols) {
+            placeTrap(diff == 1
+                ? 'Spike'
+                : diff == 2
+                    ? (i.isEven ? 'ESpike' : 'FFloor')
+                    : (i.isEven ? 'MThwomp' : 'TSpy'),
+                supportCol);
+          }
         }
 
         currentCol += platformWidth + (diff == 1 ? 5 : diff == 2 ? 4 : 3);
