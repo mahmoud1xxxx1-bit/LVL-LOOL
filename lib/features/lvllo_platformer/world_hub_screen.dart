@@ -222,7 +222,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
     );
   }
 }
- extends StatelessWidget {
+class _StageCard extends StatelessWidget {
   const _StageCard({required this.stageId, required this.difficulty, required this.mechanicId, required this.onTap});
   final int stageId;
   final int difficulty;
