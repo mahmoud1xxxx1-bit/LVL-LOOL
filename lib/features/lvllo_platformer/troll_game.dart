@@ -15,7 +15,7 @@ class TrollGame extends StatefulWidget {
   const TrollGame({
     super.key,
     this.onWin,
-    this.startRound = 1,
+    this.startRound,
     this.maxRounds = 2,
     this.levelsPerMechanic = 3,
     this.mechanicOffset = 0,
@@ -29,7 +29,7 @@ class TrollGame extends StatefulWidget {
   final void Function(int score)? onWin;
   final VoidCallback? onFail;
   final VoidCallback? onNextStage;
-  final int startRound;
+  final int? startRound;
   final int maxRounds;
   final int levelsPerMechanic;
   final int mechanicOffset;
@@ -65,7 +65,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     super.initState();
     _focusNode = FocusNode();
     _engine = TrollEngine(
-      round: widget.startRound != 1 ? widget.startRound : widget.stageId,
+      round: widget.startRound ?? widget.stageId,
       maxRounds: widget.maxRounds,
       levelsPerMechanic: widget.levelsPerMechanic,
       mechanicOffset: widget.mechanicOffset,
@@ -272,7 +272,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                           child: _hudPill(
                             icon: Icons.bolt_rounded,
                             color: const Color(0xFF5CF5FF),
-                            text: 'STAGE ${_engine.round}',
+                            text: 'STAGE ${_engine.round > 100 ? _engine.round - 100 : _engine.round}',
                           ),
                         ),
                       ),

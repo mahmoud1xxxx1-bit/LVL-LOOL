@@ -5,6 +5,7 @@ import '../../core/theme/cosmic_background.dart';
 import '../../core/theme/design_tokens.dart';
 import '../multiplayer_engine/duel_service.dart';
 import 'troll_game.dart';
+import 'troll_stage_plan.dart';
 
 class TrollDuelScreen extends StatefulWidget {
   const TrollDuelScreen({super.key});
@@ -52,10 +53,15 @@ class _TrollDuelScreenState extends State<TrollDuelScreen> {
   }
 
   void _startMatch(int stageId, int seed, String matchId) async {
+    final plan = TrollStagePlan.getPlan(stageId);
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => TrollGame(
           stageId: stageId,
+          startRound: plan.localStage,
+          maxRounds: 1,
+          levelsPerMechanic: plan.levelsPerMechanic,
+          mechanicOffset: plan.mechanicOffset,
           duelMatchId: matchId,
           duelSeed: seed,
           onWin: (_) async {

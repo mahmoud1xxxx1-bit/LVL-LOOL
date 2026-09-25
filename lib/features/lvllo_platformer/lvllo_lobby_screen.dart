@@ -174,7 +174,7 @@ class _LvlloLobbyScreenState extends State<LvlloLobbyScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('THE TROLL PLATFORMER', style: TextStyle(color: GameColors.accentBright, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
         const SizedBox(height: 10),
-        const Text('175 STAGES.\nZERO MERCY.', style: TextStyle(fontSize: 36, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.2)),
+        const Text('75 STAGES.\nZERO MERCY.', style: TextStyle(fontSize: 36, height: .96, fontWeight: FontWeight.w900, letterSpacing: -1.2)),
         const SizedBox(height: 10),
         const Text('Learn the trap. Remember the pattern. Beat the stage.', style: TextStyle(color: GameColors.textSoft, fontSize: 13, height: 1.35)),
         const SizedBox(height: 16),
@@ -207,7 +207,7 @@ class _LvlloLobbyScreenState extends State<LvlloLobbyScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('YOUR JOURNEY', style: TextStyle(color: GameColors.muted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 2)),
       const SizedBox(height: 10),
-      _journeyTile(icon: Icons.public_rounded, title: 'WORLDS', subtitle: 'Explore all 175 stages', value: '6 WORLDS', onTap: _openWorlds),
+      _journeyTile(icon: Icons.public_rounded, title: 'MAIN STAGES', subtitle: 'Explore the 75 stages', value: '1 WORLD', onTap: _openWorlds),
       const SizedBox(height: 9),
       _journeyTile(icon: Icons.storefront_rounded, title: 'STORE', subtitle: 'Lives, gems and rewards', value: 'SHOP', onTap: () => _selectTab(2)),
       const SizedBox(height: 9),
