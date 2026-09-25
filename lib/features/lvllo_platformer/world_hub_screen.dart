@@ -201,7 +201,7 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                     childCount: _count,
                   ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                    crossAxisCount: 3,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                     childAspectRatio: 1 / 1.15,
