@@ -176,6 +176,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     
     if (widget.duelMatchId != null) {
       if (!mounted) return;
+      await DuelService.updateProgress(widget.duelMatchId!, 1.0);
       setState(() { _victoryVisible = true; _stageReward = {'gold': 0, 'gems': 0}; });
       HapticFeedback.heavyImpact();
       widget.onWin?.call(0);
@@ -183,6 +184,12 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     }
 
     final reward = await EconomyManager.processStageWin(widget.stageId);
+    int soloGold = 0;
+    try {
+      soloGold = await DuelService.claimSoloWin(widget.stageId);
+    } catch (_) {}
+    reward['gold'] = soloGold;
+
     final economy = await EconomyManager.checkEconomy();
     if (!mounted) return;
     setState(() {

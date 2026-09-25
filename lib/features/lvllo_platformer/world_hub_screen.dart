@@ -85,17 +85,6 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
           levelsPerMechanic: plan.levelsPerMechanic,
           mechanicOffset: plan.mechanicOffset,
           onWin: (_) async {
-            try {
-              await DuelService.claimSoloWin(stageId);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Claimed 250 Gold!')));
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Already claimed today or error')));
-              }
-            }
-            EconomyManager.processStageWin(stageId);
             await _loadProgress();
             if (context.mounted) Navigator.of(context).pop();
           },

@@ -23,17 +23,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid);
       
       // Allow players to update THEIR OWN progress. Nothing else.
-      allow update: if request.auth != null
-        && (
-            (request.auth.uid == resource.data.player1 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['p1Progress'])) ||
-            (request.auth.uid == resource.data.player2 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['p2Progress']))
-        )
-        // Clamp bounds
-        && request.resource.data.p1Progress >= 0.0 && request.resource.data.p1Progress <= 1.0
-        && request.resource.data.p2Progress >= 0.0 && request.resource.data.p2Progress <= 1.0
-        // Prevent decreasing progress
-        && (request.resource.data.p1Progress >= resource.data.p1Progress || request.auth.uid != resource.data.player1)
-        && (request.resource.data.p2Progress >= resource.data.p2Progress || request.auth.uid != resource.data.player2);
+      allow update: if false;
         
       allow create, delete: if false; // Only server creates duels
     }

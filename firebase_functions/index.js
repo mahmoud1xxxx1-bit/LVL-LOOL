@@ -112,10 +112,15 @@ exports.claimDuelWin = functions.https.onCall(async (data, context) => {
         if (match.player1 !== uid && match.player2 !== uid) {
             throw new functions.https.HttpsError('permission-denied', 'You are not in this match');
         }
+        
+        const myProgress = match.player1 === uid ? match.p1Progress : match.p2Progress;
+        if ((myProgress || 0) < 1) {
+            throw new functions.https.HttpsError('failed-precondition', 'Server progress not reached 1.0');
+        }
 
         const now = admin.firestore.Timestamp.now();
         const elapsedSeconds = now.seconds - match.startTime.seconds;
-        if (elapsedSeconds > 185) { 
+        if (elapsedSeconds > 180) { 
              transaction.update(matchRef, { status: 'timeout' });
              throw new functions.https.HttpsError('out-of-range', 'Time limit exceeded');
         }
@@ -157,6 +162,17 @@ exports.resolveTimeout = functions.https.onCall(async (data, context) => {
         const match = matchDoc.data();
         if (match.status !== 'playing') {
             return { status: match.status }; 
+        }
+        
+        const uid = context.auth.uid;
+        if (match.player1 !== uid && match.player2 !== uid) {
+            throw new functions.https.HttpsError('permission-denied', 'You are not in this match');
+        }
+
+        const now = admin.firestore.Timestamp.now();
+        const elapsedSeconds = now.seconds - match.startTime.seconds;
+        if (elapsedSeconds < 180) { 
+             throw new functions.https.HttpsError('failed-precondition', 'Time has not expired yet');
         }
         
         const p1Progress = match.p1Progress || 0;

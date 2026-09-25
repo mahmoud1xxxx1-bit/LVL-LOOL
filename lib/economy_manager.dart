@@ -334,8 +334,6 @@ class EconomyManager {
       completed.add(key);
       await prefs.setStringList(_completedStagesKey, completed);
       await prefs.setInt('ld_gems', (prefs.getInt('ld_gems') ?? 0) + gems);
-    } else {
-      await prefs.setInt('ld_gold', (prefs.getInt('ld_gold') ?? 0) + replayGold);
     }
 
     // Keep the first-clear/replay result explicit for the victory UI.
