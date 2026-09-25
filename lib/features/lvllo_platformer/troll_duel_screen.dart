@@ -53,7 +53,7 @@ class _TrollDuelScreenState extends State<TrollDuelScreen> {
   }
 
   void _startMatch(int stageId, int seed, String matchId) async {
-    final plan = TrollStagePlan.getPlan(stageId);
+    final plan = TrollStagePlan.fromStageId(stageId);
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => TrollGame(
