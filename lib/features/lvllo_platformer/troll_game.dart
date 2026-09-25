@@ -1,17 +1,20 @@
 import 'dart:ui' as ui;
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import '../../../../economy_manager.dart';
 import 'troll_engine.dart';
+import '../multiplayer_engine/duel_service.dart';
 import 'lvllo_season_visual_theme.dart';
 import '../../../../core/navigation/game_orientation.dart';
 
 class TrollGame extends StatefulWidget {
   const TrollGame({
     super.key,
-    required this.onWin,
+    this.onWin,
     this.startRound = 1,
     this.maxRounds = 2,
     this.levelsPerMechanic = 3,
@@ -20,8 +23,10 @@ class TrollGame extends StatefulWidget {
     this.onFail,
     this.onNextStage,
     this.stageId = 1,
+    this.duelMatchId,
+    this.duelSeed,
   });
-  final void Function(int score) onWin;
+  final void Function(int score)? onWin;
   final VoidCallback? onFail;
   final VoidCallback? onNextStage;
   final int startRound;
@@ -30,6 +35,8 @@ class TrollGame extends StatefulWidget {
   final int mechanicOffset;
   final int? stageSeedOverride;
   final int stageId;
+  final String? duelMatchId;
+  final int? duelSeed;
 
   @override
   State<TrollGame> createState() => _TrollGameState();
@@ -48,18 +55,24 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   int _maxLives = 10;
   Map<String, dynamic>? _stageReward;
 
+  double _lastReportedProgress = -1;
+  int _lastReportedTime = 0;
+  int _duelStartTime = 0;
+  bool _duelTimeout = false;
+
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode();
     _engine = TrollEngine(
-      round: widget.startRound,
+      round: widget.startRound != 1 ? widget.startRound : widget.stageId,
       maxRounds: widget.maxRounds,
       levelsPerMechanic: widget.levelsPerMechanic,
       mechanicOffset: widget.mechanicOffset,
-      stageSeedOverride: widget.stageSeedOverride,
+      stageSeedOverride: widget.duelSeed ?? widget.stageSeedOverride,
     );
     GameOrientation.enterGame();
+    _duelStartTime = DateTime.now().millisecondsSinceEpoch;
     _ticker = createTicker(_onTick)..start();
   }
 
@@ -73,6 +86,29 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     _lastTime = elapsed;
 
     _engine.update(dt);
+    
+    if (widget.duelMatchId != null && !_duelTimeout) {
+      final nowTime = DateTime.now().millisecondsSinceEpoch;
+      if (nowTime - _duelStartTime >= 180000) { // 3 mins
+        _duelTimeout = true;
+        _ticker.stop();
+        DuelService.resolveTimeout(widget.duelMatchId!).then((_) {
+            if (mounted) Navigator.of(context).pop();
+        }).catchError((_) {
+            if (mounted) Navigator.of(context).pop();
+        });
+        return;
+      }
+
+      if (nowTime - _lastReportedTime > 1000) {
+        _lastReportedTime = nowTime;
+        final progress = (_engine.player.rect.left / (_engine.maxMapWidth)).clamp(0.0, 1.0);
+        if ((progress - _lastReportedProgress).abs() > 0.05) {
+          _lastReportedProgress = progress;
+          DuelService.updateProgress(widget.duelMatchId!, progress);
+        }
+      }
+    }
 
     if (_engine.isDead && !_deathVisible && !_victoryVisible) {
       _handleDeath();
@@ -88,10 +124,20 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   }
 
   Future<void> _handleDeath() async {
-    _ticker.stop();
     _engine.movingLeft = false;
     _engine.movingRight = false;
     _engine.jumping = false;
+    if (widget.duelMatchId != null) {
+      // Unlimited lives in duel!
+      setState(() { _deathVisible = true; });
+      await Future.delayed(const Duration(milliseconds: 500));
+      _engine.player.rect = RectD(15 * 30.0, 30.0, _engine.player.rect.w, _engine.player.rect.h);
+      _engine.player.vy = 0;
+      _engine.isDead = false;
+      if (mounted) setState(() { _deathVisible = false; });
+      return;
+    }
+    _ticker.stop();
     await EconomyManager.deductLife();
     final economy = await EconomyManager.checkEconomy();
     if (!mounted) return;
@@ -421,7 +467,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!isLastStage) FilledButton.icon(onPressed: widget.onNextStage ?? () => widget.onWin(_engine.totalScore), icon: const Icon(Icons.arrow_forward_rounded), label: const Text('NEXT STAGE')),
+              if (!isLastStage) FilledButton.icon(onPressed: widget.onNextStage ?? () => widget.onWin?.call(_engine.totalScore), icon: const Icon(Icons.arrow_forward_rounded), label: const Text('NEXT STAGE')),
               if (!isLastStage) const SizedBox(width: 10),
               OutlinedButton.icon(onPressed: widget.onFail, icon: const Icon(Icons.map_rounded), label: const Text('MAP')),
             ],
@@ -1134,4 +1180,90 @@ class _TrollPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrollPainter oldDelegate) => true;
+}
+
+
+
+
+class _DuelHud extends StatelessWidget {
+  const _DuelHud({required this.matchId, required this.progress, required this.startTime});
+  final String matchId;
+  final double progress;
+  final int startTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: DuelService.streamMatch(matchId),
+      builder: (context, snapshot) {
+        double oppProgress = 0.0;
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final uid = FirebaseAuth.instance.currentUser?.uid;
+          if (data['player1'] == uid) {
+            oppProgress = (data['p2Progress'] ?? 0.0).toDouble();
+          } else {
+            oppProgress = (data['p1Progress'] ?? 0.0).toDouble();
+          }
+        }
+        
+        final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
+        final remaining = (180000 - elapsed) ~/ 1000;
+        final seconds = remaining > 0 ? remaining : 0;
+        final minStr = (seconds ~/ 60).toString();
+        final secStr = (seconds % 60).toString().padLeft(2, '0');
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xD90A1124),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF5CF5FF).withOpacity(0.5)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('TIME: ${minStr}:${secStr}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text('YOU', style: const TextStyle(color: Color(0xFF5CF5FF), fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(height: 4, color: Colors.white24),
+                        FractionallySizedBox(
+                          widthFactor: progress,
+                          child: Container(height: 4, color: const Color(0xFF5CF5FF)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Text('OPP', style: const TextStyle(color: Color(0xFFFF5478), fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(height: 4, color: Colors.white24),
+                        FractionallySizedBox(
+                          widthFactor: oppProgress,
+                          child: Container(height: 4, color: const Color(0xFFFF5478)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
 }
