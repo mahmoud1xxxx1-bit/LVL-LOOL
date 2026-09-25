@@ -25,6 +25,7 @@ class TrollGame extends StatefulWidget {
     this.stageId = 1,
     this.duelMatchId,
     this.duelSeed,
+    this.testStage = false,
   });
   final void Function(int score)? onWin;
   final VoidCallback? onFail;
@@ -37,6 +38,7 @@ class TrollGame extends StatefulWidget {
   final int stageId;
   final String? duelMatchId;
   final int? duelSeed;
+  final bool testStage;
 
   @override
   State<TrollGame> createState() => _TrollGameState();
@@ -70,6 +72,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       levelsPerMechanic: widget.levelsPerMechanic,
       mechanicOffset: widget.mechanicOffset,
       stageSeedOverride: widget.duelSeed ?? widget.stageSeedOverride,
+      testStageMode: widget.testStage,
     );
     GameOrientation.enterGame();
     _duelStartTime = DateTime.now().millisecondsSinceEpoch;
@@ -174,6 +177,14 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     if (_rewardProcessed) return;
     _rewardProcessed = true;
     
+    if (widget.testStage) {
+      if (!mounted) return;
+      setState(() { _victoryVisible = true; _stageReward = {'gold': 0, 'gems': 0}; });
+      HapticFeedback.heavyImpact();
+      widget.onWin?.call(0);
+      return;
+    }
+
     if (widget.duelMatchId != null) {
       if (!mounted) return;
       await DuelService.updateProgress(widget.duelMatchId!, 1.0);
@@ -630,7 +641,7 @@ class _TrollPainter extends CustomPainter {
   final TrollEngine engine;
   final int stageId;
 
-  LvlloSeasonVisualTheme get theme => LvlloSeasonVisualTheme.forStage(stageId);
+  LvlloSeasonVisualTheme get theme => LvlloSeasonVisualTheme.forStage(stageId == 0 ? 101 : stageId);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -646,7 +657,11 @@ class _TrollPainter extends CustomPainter {
     }
 
 
-    _drawBackground(canvas);
+    if (engine.testStageMode) {
+      _drawTestBackground(canvas);
+    } else {
+      _drawBackground(canvas);
+    }
 
     // Apply Camera for world elements
     canvas.save();
@@ -658,6 +673,27 @@ class _TrollPainter extends CustomPainter {
     
     for (var e in engine.entities) {
       if (!e.isVisible) continue;
+
+      if (engine.testStageMode) {
+        if (e.id.startsWith('saw_')) {
+          if (e.isVisible) _drawTestSaw(canvas, e.rect);
+        } else if (e.id.startsWith('laser_')) {
+          if (e.isVisible) _drawTestLaser(canvas, e.rect);
+        } else if (e.id.startsWith('moving_platform_')) {
+          _drawTestMovingPlatform(canvas, e.rect);
+        } else if (e.id.startsWith('gate_')) {
+          _drawTestGate(canvas, e.rect);
+        } else if (e.id.startsWith('crusher_')) {
+          _drawThwomp(canvas, e.rect);
+        } else if (e.id == 'door') {
+          _drawTestDoor(canvas, e.rect);
+        } else if (e.type == TrollEntityType.block) {
+          _drawTestArchitecture(canvas, e.rect, e.id);
+        } else if (e.type == TrollEntityType.spike) {
+          if (e.isVisible) _drawSpike(canvas, e.rect, const Color(0xFFFF3DAF), e.isInverted);
+        }
+        continue;
+      }
 
       if (e.type == TrollEntityType.block) {
         final timedTrap = engine.traps.whereType<TimedPlatformTrap>().where(
@@ -742,6 +778,10 @@ class _TrollPainter extends CustomPainter {
       canvas.drawCircle(Offset(p.x, p.y), 4 * (p.life / p.maxLife), paint);
     }
     
+    if (engine.testStageMode) {
+      _drawTestWater(canvas);
+    }
+
     // Restore world camera
     canvas.restore();
 
@@ -838,6 +878,157 @@ class _TrollPainter extends CustomPainter {
     }
     // Removed ROUND text to keep the player surprised
     canvas.restore();
+  }
+
+  void _drawTestBackground(Canvas canvas) {
+    final r = Rect.fromLTWH(0, 0, engine.logicalWidth, engine.logicalHeight);
+    final p = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF07164A), Color(0xFF12052A), Color(0xFF03050F)],
+      ).createShader(r);
+    canvas.drawRect(r, p);
+
+    // Deep cavern silhouettes.
+    final back = Paint()..color = const Color(0xFF101B4A);
+    final front = Paint()..color = const Color(0xFF080D28);
+    for (int i = 0; i < 6; i++) {
+      final x = i * 760.0 - engine.cameraX * .12;
+      final path = Path()
+        ..moveTo(x, 600)
+        ..lineTo(x + 90, 260)
+        ..lineTo(x + 260, 110)
+        ..lineTo(x + 430, 260)
+        ..lineTo(x + 610, 150)
+        ..lineTo(x + 760, 320)
+        ..lineTo(x + 760, 600)
+        ..close();
+      canvas.drawPath(path, back);
+      final fp = Path()
+        ..moveTo(x, 600)
+        ..lineTo(x + 180, 380)
+        ..lineTo(x + 350, 430)
+        ..lineTo(x + 520, 300)
+        ..lineTo(x + 760, 410)
+        ..lineTo(x + 760, 600)
+        ..close();
+      canvas.drawPath(fp, front);
+    }
+
+    // Crystals and architectural light pillars.
+    for (int i = 0; i < 18; i++) {
+      final x = (i * 235.0 + 80) - engine.cameraX * .22;
+      final y = 70.0 + (i % 5) * 65.0;
+      final glow = Paint()
+        ..color = (i.isEven ? const Color(0xFF00E7FF) : const Color(0xFFA53BFF)).withOpacity(.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
+      canvas.drawCircle(Offset(x, y), 20, glow);
+      final crystal = Paint()..color = i.isEven ? const Color(0xFF00B9FF) : const Color(0xFF7E2BFF);
+      final path = Path()
+        ..moveTo(x, y - 18)
+        ..lineTo(x + 10, y)
+        ..lineTo(x, y + 24)
+        ..lineTo(x - 9, y)
+        ..close();
+      canvas.drawPath(path, crystal);
+    }
+  }
+
+  void _drawTestArchitecture(Canvas canvas, RectD rect, String id) {
+    final base = Paint()..color = const Color(0xFF10182F);
+    final edge = Paint()..color = const Color(0xFF314A79);
+    final glow = Paint()
+      ..color = const Color(0xFF6D3DFF).withOpacity(.28)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(7)), glow);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(7)), base);
+    canvas.drawRect(Rect.fromLTWH(rect.x, rect.y, rect.w, 5), edge);
+    if (id.contains('ledge') || id.contains('arch')) {
+      final p = Paint()..color = const Color(0xFF00D9FF).withOpacity(.55);
+      for (double x = rect.x + 12; x < rect.right - 8; x += 34) {
+        canvas.drawRect(Rect.fromLTWH(x, rect.y + 5, 3, min(10, rect.h - 5)), p);
+      }
+    }
+  }
+
+  void _drawTestMovingPlatform(Canvas canvas, RectD rect) {
+    final p = Paint()..color = const Color(0xFF173B61);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(6)), p);
+    p.color = const Color(0xFF00E7FF);
+    canvas.drawRect(Rect.fromLTWH(rect.x, rect.y, rect.w, 4), p);
+    p.color = const Color(0xFFA53BFF).withOpacity(.8);
+    canvas.drawCircle(Offset(rect.x + rect.w / 2, rect.y + rect.h / 2), 5, p);
+  }
+
+  void _drawTestSaw(Canvas canvas, RectD rect) {
+    final center = Offset(rect.x + rect.w / 2, rect.y + rect.h / 2);
+    final p = Paint()..color = const Color(0xFFFF2EBE);
+    canvas.drawCircle(center, rect.w * .38, p);
+    p.color = const Color(0xFF080A18);
+    canvas.drawCircle(center, rect.w * .16, p);
+    p.color = const Color(0xFF00E7FF);
+    for (int i = 0; i < 10; i++) {
+      final a = i * pi / 5;
+      final tip = Offset(center.dx + cos(a) * rect.w * .50, center.dy + sin(a) * rect.h * .50);
+      final left = Offset(center.dx + cos(a - .15) * rect.w * .28, center.dy + sin(a - .15) * rect.h * .28);
+      final right = Offset(center.dx + cos(a + .15) * rect.w * .28, center.dy + sin(a + .15) * rect.h * .28);
+      final path = Path()..moveTo(left.dx, left.dy)..lineTo(tip.dx, tip.dy)..lineTo(right.dx, right.dy)..close();
+      canvas.drawPath(path, p);
+    }
+  }
+
+  void _drawTestLaser(Canvas canvas, RectD rect) {
+    final p = Paint()
+      ..color = const Color(0xFFFF3355)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 9);
+    canvas.drawRect(rect.toRect(), p);
+    p.maskFilter = null;
+    p.color = const Color(0xFFFF6A8A);
+    canvas.drawRect(rect.toRect(), p);
+    p.color = Colors.white;
+    if (rect.w < rect.h) {
+      canvas.drawRect(Rect.fromLTWH(rect.x + rect.w / 2 - 1, rect.y, 2, rect.h), p);
+    } else {
+      canvas.drawRect(Rect.fromLTWH(rect.x, rect.y + rect.h / 2 - 1, rect.w, 2), p);
+    }
+  }
+
+  void _drawTestGate(Canvas canvas, RectD rect) {
+    final p = Paint()..color = const Color(0xFF8B3DFF);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(5)), p);
+    p.color = const Color(0xFFFF3DAF);
+    for (double y = rect.y + 10; y < rect.bottom; y += 28) {
+      canvas.drawCircle(Offset(rect.x + rect.w / 2, y), 3, p);
+    }
+  }
+
+  void _drawTestDoor(Canvas canvas, RectD rect) {
+    final outer = rect.toRect().inflate(8);
+    final p = Paint()..color = const Color(0xFFFFC94A);
+    canvas.drawRRect(RRect.fromRectAndRadius(outer, const Radius.circular(12)), p);
+    p.color = const Color(0xFF25124C);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(9)), p);
+    p.color = const Color(0xFFFFE47A);
+    canvas.drawCircle(Offset(rect.x + rect.w / 2, rect.y + 32), 8, p);
+  }
+
+  void _drawTestWater(Canvas canvas) {
+    final y = engine.testWaterY;
+    final p = Paint()..color = const Color(0xFF00B9FF).withOpacity(.34);
+    canvas.drawRect(Rect.fromLTWH(engine.cameraX, y, engine.logicalWidth, 600 - y), p);
+    p.color = const Color(0xFF5CF5FF).withOpacity(.75);
+    canvas.drawRect(Rect.fromLTWH(engine.cameraX, y, engine.logicalWidth, 4), p);
+    for (double x = engine.cameraX; x < engine.cameraX + engine.logicalWidth + 60; x += 70) {
+      final wave = Path()
+        ..moveTo(x, y)
+        ..quadraticBezierTo(x + 18, y - 8, x + 35, y)
+        ..quadraticBezierTo(x + 52, y + 8, x + 70, y);
+      canvas.drawPath(wave, Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0xFF7CEBFF).withOpacity(.65));
+    }
   }
 
   void _drawBackground(Canvas canvas) {
