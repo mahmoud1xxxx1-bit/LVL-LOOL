@@ -686,6 +686,129 @@ class TeleportSpikeTrap extends TrollTrap {
 
 // ---------------- Engine Core ----------------
 
+class TestPatrolHazardTrap extends TrollTrap {
+  final String entityId;
+  final double leftBound;
+  final double rightBound;
+  final double speed;
+  int direction = 1;
+  TrollEntity? _entity;
+
+  TestPatrolHazardTrap(this.entityId, this.leftBound, this.rightBound, this.speed);
+
+  @override
+  void update(TrollEngine engine, double dt) {
+    _entity ??= engine.entities.where((e) => e.id == entityId).firstOrNull;
+    final e = _entity;
+    if (e == null) return;
+    e.rect.x += speed * direction * dt;
+    if (e.rect.x >= rightBound) {
+      e.rect.x = rightBound;
+      direction = -1;
+    } else if (e.rect.x <= leftBound) {
+      e.rect.x = leftBound;
+      direction = 1;
+    }
+  }
+}
+
+class TestMovingPlatformTrap extends TrollTrap {
+  final String entityId;
+  final double leftBound;
+  final double rightBound;
+  final double speed;
+  int direction = 1;
+  TrollEntity? _entity;
+
+  TestMovingPlatformTrap(this.entityId, this.leftBound, this.rightBound, this.speed);
+
+  @override
+  void update(TrollEngine engine, double dt) {
+    _entity ??= engine.entities.where((e) => e.id == entityId).firstOrNull;
+    final e = _entity;
+    if (e == null) return;
+    final oldX = e.rect.x;
+    e.rect.x += speed * direction * dt;
+    if (e.rect.x >= rightBound) {
+      e.rect.x = rightBound;
+      direction = -1;
+    } else if (e.rect.x <= leftBound) {
+      e.rect.x = leftBound;
+      direction = 1;
+    }
+    // Carry the player while standing on this moving platform.
+    final playerBottom = engine.player.rect.bottom;
+    if ((engine.player.rect.right > oldX &&
+            engine.player.rect.left < oldX + e.rect.w) &&
+        (playerBottom - e.rect.y).abs() < 5) {
+      engine.player.rect.x += e.rect.x - oldX;
+    }
+  }
+}
+
+class TestPulseLaserTrap extends TrollTrap {
+  final String entityId;
+  final double activeTime;
+  final double inactiveTime;
+  double _timer = 0;
+  TrollEntity? _entity;
+
+  TestPulseLaserTrap(this.entityId, {this.activeTime = 1.4, this.inactiveTime = 1.0});
+
+  @override
+  void update(TrollEngine engine, double dt) {
+    _entity ??= engine.entities.where((e) => e.id == entityId).firstOrNull;
+    final e = _entity;
+    if (e == null) return;
+    _timer += dt;
+    final cycle = activeTime + inactiveTime;
+    final active = (_timer % cycle) < activeTime;
+    e.isVisible = active;
+  }
+}
+
+class TestRisingWaterTrap extends TrollTrap {
+  final double topY;
+  final double bottomY;
+  final double riseSpeed;
+  bool started = false;
+
+  TestRisingWaterTrap(this.topY, this.bottomY, this.riseSpeed);
+
+  @override
+  void update(TrollEngine engine, double dt) {
+    if (!started && engine.player.rect.x > 2550) started = true;
+    if (started) {
+      engine.testWaterY = max(topY, engine.testWaterY - riseSpeed * dt);
+      if (engine.player.rect.bottom > engine.testWaterY + 10) {
+        engine.killPlayer();
+      }
+    }
+  }
+}
+
+class TestGateTrap extends TrollTrap {
+  final String entityId;
+  final double triggerX;
+  final double moveDistance;
+  bool triggered = false;
+  TrollEntity? _entity;
+
+  TestGateTrap(this.entityId, this.triggerX, this.moveDistance);
+
+  @override
+  void update(TrollEngine engine, double dt) {
+    _entity ??= engine.entities.where((e) => e.id == entityId).firstOrNull;
+    final e = _entity;
+    if (e == null) return;
+    if (!triggered && engine.player.rect.x > triggerX) triggered = true;
+    if (triggered && e.rect.y > -100) {
+      e.rect.y -= 420 * dt;
+      if (e.rect.y < -e.rect.h) e.rect.y = -e.rect.h;
+    }
+  }
+}
+
 class TrollEngine {
   static bool godMode = false;
 
@@ -700,6 +823,7 @@ class TrollEngine {
     this.levelsPerMechanic = 3,
     this.mechanicOffset = 0,
     this.stageSeedOverride,
+    this.testStageMode = false,
   }) {
     stageSeed = _seedForRound(round);
     rng = Random(stageSeed); // generation RNG only
@@ -718,6 +842,10 @@ class TrollEngine {
   /// Optional global-stage seed. Used by host mode so reused Season 6 ideas
   /// still produce distinct deterministic layouts from their original stages.
   final int? stageSeedOverride;
+  final bool testStageMode;
+
+  // Test World visual/gameplay state. This is isolated from the existing 175 stages.
+  double testWaterY = 610.0;
 
   bool invertedControls = false;
   
@@ -920,11 +1048,163 @@ class TrollEngine {
     }
   }
 
+  void _loadTestStage() {
+    entities.clear();
+    traps.clear();
+    particles.clear();
+
+    maxMapWidth = 3920;
+    cameraX = 0;
+    roundWon = false;
+    completedAsWin = false;
+    isDead = false;
+    testWaterY = 610.0;
+
+    // Safe start platform.
+    void block(String id, double x, double y, double w, double h, {Color color = const Color(0xFF151B36)}) {
+      entities.add(TrollEntity(
+        id: id,
+        type: TrollEntityType.block,
+        rect: RectD(x, y, w, h),
+        color: color,
+        isSolid: true,
+      ));
+    }
+
+    void spike(String id, double x, double y, double w, double h, {bool inverted = false}) {
+      entities.add(TrollEntity(
+        id: id,
+        type: TrollEntityType.spike,
+        rect: RectD(x, y, w, h),
+        color: const Color(0xFFFF3DAF),
+        isSolid: false,
+        isInverted: inverted,
+      ));
+    }
+
+    // Main architectural route: separate chambers, elevated routes and hazards.
+    block('arch_start', 0, 540, 620, 60);
+    block('arch_mid1', 760, 500, 420, 100);
+    block('arch_mid2', 1330, 430, 430, 170);
+    block('arch_mid3', 1900, 500, 430, 100);
+    block('arch_mid4', 2460, 450, 390, 150);
+    block('arch_end', 3040, 500, 880, 100);
+
+    // Lower-route safety ledges and elevated shortcuts.
+    block('ledge_a', 500, 430, 160, 28);
+    block('ledge_b', 900, 350, 180, 28);
+    block('ledge_c', 1190, 270, 180, 28);
+    block('ledge_d', 1600, 300, 180, 28);
+    block('ledge_e', 2040, 330, 180, 28);
+    block('ledge_f', 2380, 300, 170, 28);
+    block('ledge_g', 2780, 350, 190, 28);
+    block('ledge_h', 3240, 330, 210, 28);
+    block('ledge_i', 3530, 250, 190, 28);
+
+    // Suspended moving platform.
+    block('moving_platform_1', 1030, 220, 150, 24, color: const Color(0xFF1B3E63));
+    traps.add(TestMovingPlatformTrap('moving_platform_1', 930, 1260, 180));
+
+    // New saw hazard language.
+    spike('saw_1', 620, 460, 56, 56);
+    traps.add(TestPatrolHazardTrap('saw_1', 590, 720, 190));
+    spike('saw_2', 1760, 390, 56, 56);
+    traps.add(TestPatrolHazardTrap('saw_2', 1700, 1910, 230));
+
+    // Floor and ceiling spike fields integrated into architecture.
+    spike('spike_field_1', 690, 516, 70, 24);
+    spike('spike_field_2', 1185, 476, 90, 24);
+    spike('ceiling_spikes_1', 1380, 110, 150, 24, inverted: true);
+    spike('spike_field_3', 1820, 476, 120, 24);
+    spike('ceiling_spikes_2', 2160, 300, 130, 24, inverted: true);
+    spike('spike_field_4', 2860, 476, 110, 24);
+
+    // Pulse laser gate.
+    spike('laser_gate_1', 1510, 160, 22, 210);
+    traps.add(TestPulseLaserTrap('laser_gate_1', activeTime: 1.25, inactiveTime: 0.9));
+
+    // Crusher integrated into the central tower.
+    block('crusher_1', 1980, 170, 150, 45, color: const Color(0xFF263A57));
+    traps.add(ThwompCeilingTrap(
+      RectD(1910, 340, 290, 210),
+      ['crusher_1'],
+      250,
+    ));
+
+    // Triggered vertical gate.
+    block('gate_1', 2320, 220, 36, 230, color: const Color(0xFF6D2A8C));
+    traps.add(TestGateTrap('gate_1', 2220, 260));
+
+    // Timed crossing.
+    block('timed_a', 2600, 360, 120, 24, color: const Color(0xFF184F68));
+    block('timed_b', 2740, 300, 120, 24, color: const Color(0xFF184F68));
+    traps.add(TimedPlatformTrap(['timed_a'], showDuration: 2.6, hideDuration: 2.2));
+    traps.add(TimedPlatformTrap(['timed_b'], showDuration: 2.2, hideDuration: 2.8));
+
+    // Rising-water chamber. Visual water is painted separately.
+    traps.add(TestRisingWaterTrap(395, 610, 34));
+
+    // Final mechanical corridor.
+    spike('saw_3', 3100, 430, 56, 56);
+    traps.add(TestPatrolHazardTrap('saw_3', 3040, 3340, 210));
+    spike('laser_final', 3370, 210, 20, 260);
+    traps.add(TestPulseLaserTrap('laser_final', activeTime: 1.0, inactiveTime: 1.4));
+    spike('final_spikes', 3450, 476, 140, 24);
+
+    entities.add(TrollEntity(
+      id: 'door',
+      type: TrollEntityType.door,
+      rect: RectD(3720, 190, 70, 100),
+      color: const Color(0xFFFFD34D),
+      isSolid: false,
+    ));
+
+    player = TrollEntity(
+      id: 'player',
+      type: TrollEntityType.player,
+      rect: RectD(90, 500, 30, 40),
+      color: const Color(0xFFB98CFF),
+      isSolid: false,
+    );
+    entities.add(player);
+  }
+
   void _loadLevel(int id) {
     entities.clear();
     traps.clear();
     particles.clear();
     isDead = false;
+    if (testStageMode) {
+      movingLeft = false;
+      movingRight = false;
+      jumping = false;
+      playerFaceDir = 1.0;
+      playerScale = 1.0;
+      coyoteTimer = 0;
+      jumpBufferTimer = 0;
+      cameraX = 0;
+      isGravityInverted = false;
+      isSpotlightLevel = false;
+      isTimeFreezeLevel = false;
+      isLavaLevel = false;
+      isLowGravityLevel = false;
+      isFlappyLevel = false;
+      isTinyLevel = false;
+      isDashLevel = false;
+      hasDashed = false;
+      isWindLevel = false;
+      isIceLevel = false;
+      isBlinkLevel = false;
+      isMirrorLevel = false;
+      isBouncyLevel = false;
+      isGhostLevel = false;
+      isConveyorLevel = false;
+      isChasedLevel = false;
+      ghostHistory.clear();
+      chaseWallX = -200;
+      _loadTestStage();
+      return;
+    }
     roundWon = false;
     invertedControls = false; // Reset controls on new round
     transitionTimer = 0;

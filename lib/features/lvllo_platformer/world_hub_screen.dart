@@ -184,6 +184,87 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                   ),
                 ),
               ),
+
+              // Isolated visual/gameplay prototype. It does not touch the existing 75 stages.
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                sliver: SliverToBoxAdapter(
+                  child: CosmicPanel(
+                    glow: true,
+                    padding: const EdgeInsets.all(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () async {
+                        HapticFeedback.mediumImpact();
+                        await Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => TrollGame(
+                              stageId: 0,
+                              startRound: 1,
+                              maxRounds: 1,
+                              levelsPerMechanic: 1,
+                              mechanicOffset: 0,
+                              testStage: true,
+                              onWin: (_) {
+                                if (Navigator.of(context).canPop()) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              onFail: () {
+                                if (Navigator.of(context).canPop()) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        children: [
+                          const Text(
+                            'NEW WORLD',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 3,
+                              color: GameColors.accentBright,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'TEST STAGE 01',
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'EXPERIMENTAL ENVIRONMENT • NEW TRAPS • NEW LEVEL ARCHITECTURE',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: GameColors.accentBright.withOpacity(.45)),
+                              color: GameColors.accent.withOpacity(.08),
+                            ),
+                            child: const Text(
+                              'PLAY PROTOTYPE',
+                              style: TextStyle(color: GameColors.accentBright, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              )
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
                 sliver: SliverGrid(
