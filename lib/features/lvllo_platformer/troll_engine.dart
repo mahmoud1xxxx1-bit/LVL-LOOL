@@ -1076,6 +1076,7 @@ class TrollEngine {
       killPlayer();
       return;
     }
+    if (TrollEngine.godMode) return;
     if (hitInvulnerability > 0 || isDead || roundWon) return;
     hitInvulnerability = 0.75;
     if (bonusHitPoints > 0) {
@@ -3092,6 +3093,7 @@ class TrollEngine {
         }
       }
     }
+  }
 
   void _resolveCollisions(bool isAxisX) {
     for (var e in entities) {
