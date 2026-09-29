@@ -1054,7 +1054,7 @@ class TrollEngine {
     entities.clear();
     traps.clear();
     particles.clear();
-    maxMapWidth = 10600;
+    maxMapWidth = 10650;
     cameraX = 0;
     roundWon = false;
     completedAsWin = false;
@@ -1063,125 +1063,252 @@ class TrollEngine {
     void block(String id, double x, double y, double w, double h,
         {Color color = const Color(0xFF111A35)}) {
       entities.add(TrollEntity(
-        id: id, type: TrollEntityType.block,
-        rect: RectD(x, y, w, h), color: color, isSolid: true,
+        id: id,
+        type: TrollEntityType.block,
+        rect: RectD(x, y, w, h),
+        color: color,
+        isSolid: true,
       ));
     }
 
     void spike(String id, double x, double y, double w, double h,
         {bool inverted = false, Color color = const Color(0xFFFF3DAF)}) {
       entities.add(TrollEntity(
-        id: id, type: TrollEntityType.spike,
-        rect: RectD(x, y, w, h), color: color,
-        isSolid: false, isInverted: inverted,
+        id: id,
+        type: TrollEntityType.spike,
+        rect: RectD(x, y, w, h),
+        color: color,
+        isSolid: false,
+        isInverted: inverted,
       ));
     }
 
-    // 10 architectural chambers. Total route length: 10,600+ units.
+    // SEASON+ STAGE 01 — NEON RUINS
+    // Hard, 10,650+ route. The difficulty comes from timing, reading and
+    // recovery choices — not from unavoidable trap chains.
+    //
+    // Every dangerous floor section has either:
+    //  • a readable jump window,
+    //  • an elevated recovery platform, or
+    //  • a short alternate route.
     final floors = <List<double>>[
-      [0, 900], [1050, 1900], [2100, 3000], [3200, 4100],
-      [4300, 5200], [5400, 6300], [6500, 7400], [7600, 8500],
-      [8700, 9600], [9800, 10600],
+      [0, 820], [960, 1800], [1940, 2760], [2900, 3800],
+      [3940, 4900], [5040, 6000], [6140, 7000], [7140, 7900],
+      [8040, 8900], [9040, 10000], [10120, 10650],
     ];
+
     for (var i = 0; i < floors.length; i++) {
-      block('plus_floor_$i', floors[i][0], 540, floors[i][1] - floors[i][0], 60,
-          color: i.isEven ? const Color(0xFF111A35) : const Color(0xFF142044));
+      block(
+        'plus_floor_$i',
+        floors[i][0],
+        540,
+        floors[i][1] - floors[i][0],
+        60,
+        color: i.isEven
+            ? const Color(0xFF101A38)
+            : const Color(0xFF152447),
+      );
     }
 
-    // Elevated ruins and alternate routes.
+    // Ruin architecture: staggered ledges, pillars and overhead beams.
     final ledges = <List<double>>[
-      [520, 410, 210], [1180, 360, 230], [2260, 330, 220],
-      [3500, 280, 240], [4520, 350, 230], [5660, 300, 250],
-      [6880, 340, 220], [8040, 290, 250], [9140, 350, 240],
-      [10120, 300, 240],
+      [360, 420, 230], [1120, 390, 220], [1450, 330, 250],
+      [2040, 390, 240], [2360, 320, 220], [3020, 390, 230],
+      [3370, 300, 260], [4050, 400, 220], [4470, 320, 250],
+      [5200, 390, 220], [5580, 300, 250], [6250, 390, 230],
+      [6680, 310, 240], [7250, 400, 230], [7550, 300, 260],
+      [8180, 390, 240], [8500, 300, 260], [9200, 390, 230],
+      [9560, 310, 240], [10200, 390, 250],
     ];
     for (var i = 0; i < ledges.length; i++) {
-      block('plus_ledge_$i', ledges[i][0], ledges[i][1], ledges[i][2], 28,
-          color: const Color(0xFF172747));
+      block(
+        'plus_ledge_$i',
+        ledges[i][0],
+        ledges[i][1],
+        ledges[i][2],
+        28,
+        color: const Color(0xFF172B50),
+      );
     }
 
-    // 01/12: Moving platform across the first void.
-    block('plus_moving_1', 875, 420, 150, 24, color: const Color(0xFF1B4168));
-    traps.add(TestMovingPlatformTrap('plus_moving_1', 850, 1020, 190));
+    final pillars = <List<double>>[
+      [180, 300, 42, 240], [760, 250, 46, 290],
+      [1260, 250, 42, 290], [2180, 220, 44, 320],
+      [3140, 210, 46, 330], [4320, 250, 44, 290],
+      [5480, 220, 46, 320], [6860, 230, 44, 310],
+      [7760, 210, 46, 330], [8680, 240, 44, 300],
+      [9740, 220, 46, 320], [10360, 230, 46, 310],
+    ];
+    for (var i = 0; i < pillars.length; i++) {
+      block(
+        'plus_pillar_$i',
+        pillars[i][0],
+        pillars[i][1],
+        pillars[i][2],
+        pillars[i][3],
+        color: const Color(0xFF0D1732),
+      );
+    }
 
-    // 02/12: Patrol saw in the industrial chamber.
-    spike('plus_saw_1', 1280, 480, 58, 58);
-    traps.add(TestPatrolHazardTrap('plus_saw_1', 1190, 1500, 220));
+    final beams = <List<double>>[
+      [40, 210, 340], [980, 190, 310], [1960, 180, 300],
+      [2920, 170, 330], [4000, 190, 320], [5100, 180, 300],
+      [6200, 190, 330], [7200, 170, 300], [8100, 190, 330],
+      [9100, 180, 320], [10180, 170, 300],
+    ];
+    for (var i = 0; i < beams.length; i++) {
+      block(
+        'plus_beam_$i',
+        beams[i][0],
+        beams[i][1],
+        beams[i][2],
+        22,
+        color: const Color(0xFF182A4A),
+      );
+    }
 
-    // 03/12: Appearing spikes, reusing the old Season mechanics.
-    for (int i = 0; i < 3; i++) {
-      final id = 'plus_aspike_$i';
-      spike(id, 1710 + i * 60, 516, 54, 24);
+    // 01/12 — First void: moving platform. The jump is possible without it,
+    // but the platform gives a safer timing route across the 140-unit gap.
+    block('moving_platform_plus_1', 820, 430, 145, 24,
+        color: const Color(0xFF1B4168));
+    traps.add(TestMovingPlatformTrap(
+      'moving_platform_plus_1', 810, 955, 190,
+    ));
+
+    // 02/12 — Short spike rhythm. No pit immediately after it; the raised
+    // ledge gives a second route for a player who reads the pattern quickly.
+    spike('spike_plus_1', 1210, 516, 70, 24);
+    spike('spike_plus_2', 1330, 516, 70, 24);
+    block('plus_recovery_1', 1450, 430, 250, 24,
+        color: const Color(0xFF1B355D));
+
+    // 03/12 — Patrol saw. It moves across a clear floor section, leaving a
+    // predictable opening rather than blocking the whole passage.
+    spike('saw_plus_1', 1510, 455, 58, 58);
+    traps.add(TestPatrolHazardTrap('saw_plus_1', 1490, 1740, 210));
+
+    // 04/12 — Appearing spikes. The warning zone is long enough to react and
+    // the elevated ledge at 1450-1700 is a deliberate recovery option.
+    for (int i = 0; i < 2; i++) {
+      final id = 'aspike_plus_$i';
+      spike(id, 1670 + i * 70, 516, 54, 24);
       entities.last.isVisible = false;
     }
     traps.add(AppearingSpikesTrap(
-      RectD(1600, 450, 360, 120),
-      ['plus_aspike_0', 'plus_aspike_1', 'plus_aspike_2'],
+      RectD(1580, 455, 360, 110),
+      ['aspike_plus_0', 'aspike_plus_1'],
     ));
 
-    // 04/12: Falling floor section.
-    for (int i = 0; i < 5; i++) {
-      block('plus_fall_$i', 2360 + i * 40, 540, 40, 60);
+    // 05/12 — Falling platforms. Only the central floor tiles fall; the
+    // elevated ledge above remains a valid recovery route.
+    for (int i = 0; i < 4; i++) {
+      block('fall_plus_$i', 2080 + i * 45, 540, 45, 60);
     }
     traps.add(FallingPlatformTrap(
-      RectD(2260, 500, 380, 120),
-      List.generate(5, (i) => 'plus_fall_$i'),
+      RectD(2010, 495, 310, 120),
+      List.generate(4, (i) => 'fall_plus_$i'),
     ));
 
-    // 05/12: Ceiling crusher in the central tower.
-    block('plus_crusher_1', 3320, 180, 180, 55, color: const Color(0xFF273A5C));
+    // 06/12 — Crusher. A wide trigger gives the player time to see the
+    // mechanism; the nearby ledge creates a smart dodge instead of a coinflip.
+    block('crusher_plus_1', 3010, 180, 190, 55,
+        color: const Color(0xFF273A5C));
     traps.add(ThwompCeilingTrap(
-      RectD(3180, 300, 480, 240),
-      ['plus_crusher_1'],
+      RectD(2920, 300, 470, 240),
+      ['crusher_plus_1'],
       250,
     ));
 
-    // 06/12: Timed bridge.
-    block('plus_timed_1', 4250, 450, 130, 24, color: const Color(0xFF19506A));
-    block('plus_timed_2', 4410, 390, 130, 24, color: const Color(0xFF19506A));
-    traps.add(TimedPlatformTrap(['plus_timed_1'], showDuration: 2.8, hideDuration: 2.4));
-
-    // 07/12: Fake solid shortcut.
-    block('plus_fake_1', 5550, 430, 220, 28, color: const Color(0xFF28375D));
-    traps.add(FakeSolidTrap(RectD(5480, 380, 360, 130), ['plus_fake_1']));
-
-    // 08/12: Reverse controls.
-    block('plus_reverse_gate', 6420, 420, 24, 120, color: const Color(0xFF7A36B5));
-    traps.add(ReverseControlsTrap(RectD(6320, 420, 240, 150)));
-
-    // 09/12: Gravity flip chamber.
-    block('plus_gravity_ceiling', 7080, 40, 360, 36, color: const Color(0xFF253A66));
-    traps.add(GravityFlipZoneTrap(RectD(6960, 100, 600, 430)));
-
-    // 10/12: Running door chase.
-    block('plus_run_door', 8220, 420, 60, 100, color: const Color(0xFF8A3DFF));
-    traps.add(RunningDoorTrap(
-      RectD(8000, 400, 420, 160), 'plus_run_door', 430,
+    // 07/12 — Timed bridge across the next void. Two stepping stones are
+    // controlled together; the timing is demanding but readable.
+    block('timed_plus_1', 3780, 460, 115, 24,
+        color: const Color(0xFF19506A));
+    block('timed_plus_2', 3895, 400, 125, 24,
+        color: const Color(0xFF19506A));
+    traps.add(TimedPlatformTrap(
+      ['timed_plus_1', 'timed_plus_2'],
+      showDuration: 2.7,
+      hideDuration: 2.3,
     ));
 
-    // 11/12: Pulse laser gate.
-    spike('plus_laser_1', 9020, 210, 24, 300, color: const Color(0xFFFF3355));
-    traps.add(TestPulseLaserTrap('plus_laser_1', activeTime: 1.1, inactiveTime: 1.3));
+    // 08/12 — Fake solid. This is a mind-game, not an instant-death wall:
+    // a lower floor remains underneath if the player tests the block.
+    block('fake_plus_1', 5220, 430, 220, 28,
+        color: const Color(0xFF28375D));
+    traps.add(FakeSolidTrap(
+      RectD(5150, 385, 360, 125),
+      ['fake_plus_1'],
+    ));
 
-    // 12/12: Aggressive door troll near the final approach.
+    // 09/12 — Reverse controls. Long runway before and after the gate gives
+    // enough space to consciously adapt rather than forcing an immediate trap.
+    block('reverse_plus_gate', 6250, 410, 24, 130,
+        color: const Color(0xFF7A36B5));
+    traps.add(ReverseControlsTrap(
+      RectD(6140, 405, 300, 145),
+    ));
+
+    // 10/12 — Gravity chamber. The player can choose the ceiling ledges and
+    // then return to normal gravity in a wide exit area.
+    block('gravity_plus_ceiling', 7160, 60, 380, 30,
+        color: const Color(0xFF253A66));
+    block('gravity_plus_ledge', 7310, 170, 230, 24,
+        color: const Color(0xFF1D3560));
+    traps.add(GravityFlipZoneTrap(
+      RectD(7040, 100, 620, 430),
+    ));
+
+    // 11/12 — Running door. It starts after a clear acceleration lane and
+    // leaves enough distance to react; the player is rewarded for speed.
+    block('plus_run_door', 8260, 420, 60, 100,
+        color: const Color(0xFF8A3DFF));
+    traps.add(RunningDoorTrap(
+      RectD(8000, 390, 430, 170),
+      'plus_run_door',
+      360,
+    ));
+
+    // 12/12 — Pulse laser followed by a short final precision section.
+    spike('laser_plus_1', 9300, 250, 24, 260,
+        color: const Color(0xFFFF3355));
+    traps.add(TestPulseLaserTrap(
+      'laser_plus_1',
+      activeTime: 1.05,
+      inactiveTime: 1.35,
+    ));
+
+    // Final approach: no trap directly touches the finish door.
+    spike('final_spike_plus_1', 9750, 516, 70, 24);
+    spike('final_spike_plus_2', 9860, 516, 70, 24);
+    block('final_recovery_plus', 10020, 420, 250, 24,
+        color: const Color(0xFF213C68));
+
     entities.add(TrollEntity(
-      id: 'plus_aggressive_door', type: TrollEntityType.door,
-      rect: RectD(10000, 430, 60, 90),
-      color: const Color(0xFFFFD34D), isSolid: false,
+      id: 'plus_aggressive_door',
+      type: TrollEntityType.door,
+      rect: RectD(10280, 420, 60, 90),
+      color: const Color(0xFFFFD34D),
+      isSolid: false,
     ));
     traps.add(AggressiveDoorTrap('plus_aggressive_door'));
 
-    block('plus_final_approach', 10200, 500, 400, 100, color: const Color(0xFF17264A));
+    block('plus_final_approach', 10380, 500, 270, 100,
+        color: const Color(0xFF17264A));
+
     entities.add(TrollEntity(
-      id: 'door', type: TrollEntityType.door,
-      rect: RectD(10480, 410, 70, 110),
-      color: const Color(0xFFFFD34D), isSolid: false,
+      id: 'door',
+      type: TrollEntityType.door,
+      rect: RectD(10520, 390, 70, 110),
+      color: const Color(0xFFFFD34D),
+      isSolid: false,
     ));
 
     player = TrollEntity(
-      id: 'player', type: TrollEntityType.player,
+      id: 'player',
+      type: TrollEntityType.player,
       rect: RectD(90, 500, 30, 40),
-      color: const Color(0xFFB98CFF), isSolid: false,
+      color: const Color(0xFFB98CFF),
+      isSolid: false,
     );
     entities.add(player);
   }

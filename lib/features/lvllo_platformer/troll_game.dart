@@ -723,7 +723,9 @@ class _TrollPainter extends CustomPainter {
     }
 
 
-    if (engine.testStageMode || engine.seasonPlusStageMode) {
+    if (engine.seasonPlusStageMode) {
+      _drawSeasonPlusBackground(canvas);
+    } else if (engine.testStageMode) {
       _drawTestBackground(canvas);
     } else {
       _drawBackground(canvas);
@@ -754,7 +756,11 @@ class _TrollPainter extends CustomPainter {
         } else if (e.id == 'door') {
           _drawTestDoor(canvas, e.rect);
         } else if (e.type == TrollEntityType.block) {
-          _drawTestArchitecture(canvas, e.rect, e.id);
+          if (engine.seasonPlusStageMode) {
+            _drawSeasonPlusArchitecture(canvas, e.rect, e.id);
+          } else {
+            _drawTestArchitecture(canvas, e.rect, e.id);
+          }
         } else if (e.type == TrollEntityType.spike) {
           if (e.isVisible) _drawSpike(canvas, e.rect, const Color(0xFFFF3DAF), e.isInverted);
         }
@@ -946,6 +952,84 @@ class _TrollPainter extends CustomPainter {
     canvas.restore();
   }
 
+  void _drawSeasonPlusBackground(Canvas canvas) {
+    final r = Rect.fromLTWH(0, 0, engine.logicalWidth, engine.logicalHeight);
+    final p = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF050A25),
+          Color(0xFF12062D),
+          Color(0xFF02040E),
+        ],
+      ).createShader(r);
+    canvas.drawRect(r, p);
+
+    // Large ruined core in the distance.
+    final coreX = 400 - engine.cameraX * .10;
+    final glow = Paint()
+      ..color = const Color(0xFF7B35FF).withOpacity(.16)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 45);
+    canvas.drawCircle(Offset(coreX, 225), 115, glow);
+
+    final core = Paint()..color = const Color(0xFF17265A);
+    final corePath = Path()
+      ..moveTo(coreX - 95, 600)
+      ..lineTo(coreX - 135, 290)
+      ..lineTo(coreX - 55, 155)
+      ..lineTo(coreX + 25, 215)
+      ..lineTo(coreX + 110, 135)
+      ..lineTo(coreX + 150, 320)
+      ..lineTo(coreX + 95, 600)
+      ..close();
+    canvas.drawPath(corePath, core);
+
+    // Repeating ruined towers create depth while the world scrolls.
+    for (int i = 0; i < 9; i++) {
+      final x = i * 210.0 - (engine.cameraX * .18) % 210;
+      final h = 120.0 + (i % 4) * 38.0;
+      final tower = Paint()..color = const Color(0xFF0D1740);
+      canvas.drawRect(Rect.fromLTWH(x, 560 - h, 54, h), tower);
+      canvas.drawRect(
+        Rect.fromLTWH(x + 8, 560 - h + 16, 4, h - 28),
+        Paint()..color = const Color(0xFF00CFFF).withOpacity(.22),
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(x + 38, 560 - h + 32, 3, h - 46),
+        Paint()..color = const Color(0xFF9B4DFF).withOpacity(.25),
+      );
+    }
+
+    // Floating crystals mark the route without becoming gameplay objects.
+    for (int i = 0; i < 16; i++) {
+      final x = i * 265.0 + 70 - engine.cameraX * .24;
+      final y = 80.0 + (i % 5) * 62.0;
+      final glowColor =
+          i.isEven ? const Color(0xFF00D9FF) : const Color(0xFFA34DFF);
+      canvas.drawCircle(
+        Offset(x, y),
+        15,
+        Paint()
+          ..color = glowColor.withOpacity(.12)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 13),
+      );
+      final crystal = Path()
+        ..moveTo(x, y - 17)
+        ..lineTo(x + 10, y)
+        ..lineTo(x, y + 22)
+        ..lineTo(x - 10, y)
+        ..close();
+      canvas.drawPath(crystal, Paint()..color = glowColor);
+    }
+
+    // Thin neon horizon gives the ruins a finished architectural silhouette.
+    canvas.drawRect(
+      Rect.fromLTWH(0, 556, engine.logicalWidth, 2),
+      Paint()..color = const Color(0xFF00D9FF).withOpacity(.20),
+    );
+  }
+
   void _drawTestBackground(Canvas canvas) {
     final r = Rect.fromLTWH(0, 0, engine.logicalWidth, engine.logicalHeight);
     final p = Paint()
@@ -998,6 +1082,71 @@ class _TrollPainter extends CustomPainter {
         ..lineTo(x - 9, y)
         ..close();
       canvas.drawPath(path, crystal);
+    }
+  }
+
+  void _drawSeasonPlusArchitecture(Canvas canvas, RectD rect, String id) {
+    final base = Paint()..color = const Color(0xFF0B1430);
+    final edge = Paint()..color = const Color(0xFF2F5E96);
+    final cyan = Paint()..color = const Color(0xFF00D9FF).withOpacity(.72);
+    final violet = Paint()..color = const Color(0xFF9B4DFF).withOpacity(.72);
+
+    if (id.startsWith('plus_pillar_')) {
+      final glow = Paint()
+        ..color = const Color(0xFF00BFFF).withOpacity(.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect.toRect().inflate(4), const Radius.circular(8)),
+        glow,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(5)),
+        base,
+      );
+      canvas.drawRect(Rect.fromLTWH(rect.x, rect.y, 4, rect.h), edge);
+      canvas.drawRect(Rect.fromLTWH(rect.right - 4, rect.y, 4, rect.h), violet);
+      for (double y = rect.y + 22; y < rect.bottom - 8; y += 34) {
+        canvas.drawRect(Rect.fromLTWH(rect.x + 9, y, rect.w - 18, 3), cyan);
+      }
+      return;
+    }
+
+    if (id.startsWith('plus_beam_')) {
+      final glow = Paint()
+        ..color = const Color(0xFF8A3DFF).withOpacity(.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect.toRect().inflate(3), const Radius.circular(7)),
+        glow,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(5)),
+        base,
+      );
+      canvas.drawRect(Rect.fromLTWH(rect.x, rect.y, rect.w, 3), cyan);
+      for (double x = rect.x + 24; x < rect.right - 12; x += 52) {
+        canvas.drawCircle(Offset(x, rect.y + rect.h / 2), 4, violet);
+      }
+      return;
+    }
+
+    final glow = Paint()
+      ..color = const Color(0xFF6D3DFF).withOpacity(.22)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(7)),
+      glow,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.toRect(), const Radius.circular(7)),
+      base,
+    );
+    canvas.drawRect(Rect.fromLTWH(rect.x, rect.y, rect.w, 4), edge);
+
+    if (id.startsWith('plus_ledge_') || id.contains('recovery')) {
+      for (double x = rect.x + 12; x < rect.right - 8; x += 34) {
+        canvas.drawRect(Rect.fromLTWH(x, rect.y + 6, 3, min(9, rect.h - 6)), cyan);
+      }
     }
   }
 
