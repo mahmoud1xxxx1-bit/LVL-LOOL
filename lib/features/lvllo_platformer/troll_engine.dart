@@ -1321,10 +1321,13 @@ class TrollEngine {
       coyoteTimer = 0;
       jumpBufferTimer = 0;
       cameraX = 0;
+      invertedControls = false;
       isGravityInverted = false;
       isSpotlightLevel = false;
+      isWrapLevel = false;
       isTimeFreezeLevel = false;
       isLavaLevel = false;
+      lavaY = 800;
       isLowGravityLevel = false;
       isFlappyLevel = false;
       isTinyLevel = false;
