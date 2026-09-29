@@ -954,7 +954,13 @@ class _TrollPainter extends CustomPainter {
       if (!e.isVisible) continue;
 
       if (engine.testStageMode || engine.seasonPlusStageMode) {
-        if (e.id.startsWith('saw_')) {
+        if (engine.seasonPlusStageMode && e.type == TrollEntityType.enemy) {
+          _drawSeasonPlusEnemy(canvas, e);
+        } else if (engine.seasonPlusStageMode && e.type == TrollEntityType.projectile) {
+          _drawFireball(canvas, e);
+        } else if (engine.seasonPlusStageMode && e.type == TrollEntityType.chest) {
+          _drawRewardChest(canvas, e);
+        } else if (e.id.startsWith('saw_')) {
           if (e.isVisible) _drawTestSaw(canvas, e.rect);
         } else if (e.id.startsWith('laser_')) {
           if (e.isVisible) _drawTestLaser(canvas, e.rect);
@@ -1768,6 +1774,148 @@ class _TrollPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTWH(inner.left + 5, inner.top + 8, 3, inner.height - 16),
       paint,
+    );
+  }
+
+  void _drawSeasonPlusEnemy(Canvas canvas, TrollEntity e) {
+    final p = Paint()..color = const Color(0xFFFF5577);
+    final body = RRect.fromRectAndRadius(
+      e.rect.toRect(),
+      const Radius.circular(8),
+    );
+    p.maskFilter = const MaskFilter.blur(BlurStyle.outer, 8);
+    canvas.drawRRect(body, p);
+    p.maskFilter = null;
+    p.color = const Color(0xFF5A183A);
+    canvas.drawRRect(body.deflate(3), p);
+
+    // Eyes point toward the player.
+    final eye = Paint()..color = const Color(0xFFFFE6F0);
+    final eyeDir = (engine.player.rect.centerX - e.rect.centerX).sign;
+    canvas.drawCircle(
+      Offset(e.rect.x + 13 + eyeDir * 2, e.rect.y + 13),
+      3,
+      eye,
+    );
+    canvas.drawCircle(
+      Offset(e.rect.x + 28 + eyeDir * 2, e.rect.y + 13),
+      3,
+      eye,
+    );
+
+    final weapon = Paint()
+      ..color = const Color(0xFFE7EAF5)
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    final hand = Offset(
+      e.rect.x + (eyeDir >= 0 ? e.rect.w - 5 : 5),
+      e.rect.y + 28,
+    );
+    final weaponEnd = Offset(
+      hand.dx + eyeDir * 28,
+      hand.dy - 14,
+    );
+
+    if (e.enemyKind == 'hammer') {
+      weapon.color = const Color(0xFF9A6B43);
+      weapon.strokeWidth = 7;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      weapon.color = const Color(0xFF4E5260);
+      weapon.strokeWidth = 11;
+      canvas.drawLine(
+        Offset(weaponEnd.dx - eyeDir * 8, weaponEnd.dy - 2),
+        Offset(weaponEnd.dx + eyeDir * 8, weaponEnd.dy - 2),
+        weapon,
+      );
+    } else if (e.enemyKind == 'wood') {
+      weapon.color = const Color(0xFF9A6B43);
+      weapon.strokeWidth = 8;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      weapon.color = const Color(0xFFD8A56B);
+      weapon.strokeWidth = 4;
+      canvas.drawLine(
+        Offset(weaponEnd.dx - eyeDir * 4, weaponEnd.dy - 2),
+        Offset(weaponEnd.dx + eyeDir * 4, weaponEnd.dy - 2),
+        weapon,
+      );
+    } else if (e.enemyKind == 'knife') {
+      weapon.color = const Color(0xFFCFD8E8);
+      weapon.strokeWidth = 5;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      final blade = Path()
+        ..moveTo(weaponEnd.dx, weaponEnd.dy)
+        ..lineTo(weaponEnd.dx + eyeDir * 18, weaponEnd.dy - 7)
+        ..lineTo(weaponEnd.dx + eyeDir * 9, weaponEnd.dy + 5)
+        ..close();
+      canvas.drawPath(blade, weapon);
+    } else {
+      weapon.color = const Color(0xFFCFD8E8);
+      weapon.strokeWidth = 5;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      final blade = Path()
+        ..moveTo(weaponEnd.dx, weaponEnd.dy)
+        ..lineTo(weaponEnd.dx + eyeDir * 34, weaponEnd.dy - 10)
+        ..lineTo(weaponEnd.dx + eyeDir * 24, weaponEnd.dy + 2)
+        ..close();
+      canvas.drawPath(blade, weapon);
+    }
+
+    if (e.health > 1) {
+      final bar = Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w, 4);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(bar, const Radius.circular(2)),
+        Paint()..color = const Color(0x55333333),
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w * (e.health / 2).clamp(0.0, 1.0), 4),
+          const Radius.circular(2),
+        ),
+        Paint()..color = const Color(0xFFFFD54A),
+      );
+    }
+  }
+
+  void _drawFireball(Canvas canvas, TrollEntity e) {
+    final center = Offset(e.rect.x + e.rect.w / 2, e.rect.y + e.rect.h / 2);
+    final glow = Paint()
+      ..color = const Color(0xFFFF6A1A).withOpacity(.28)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    canvas.drawCircle(center, 13, glow);
+    final outer = Paint()..color = const Color(0xFFFF7A21);
+    canvas.drawCircle(center, 8, outer);
+    final inner = Paint()..color = const Color(0xFFFFE27A);
+    canvas.drawCircle(Offset(center.dx - e.vx.sign * 2, center.dy - 1), 4, inner);
+    final flame = Path()
+      ..moveTo(center.dx - e.vx.sign * 7, center.dy)
+      ..lineTo(center.dx - e.vx.sign * 18, center.dy - 5)
+      ..lineTo(center.dx - e.vx.sign * 12, center.dy + 5)
+      ..close();
+    canvas.drawPath(flame, Paint()..color = const Color(0xFFFF3D21));
+  }
+
+  void _drawRewardChest(Canvas canvas, TrollEntity e) {
+    final r = RRect.fromRectAndRadius(e.rect.toRect(), const Radius.circular(7));
+    final glow = Paint()
+      ..color = const Color(0xFFFFD54A).withOpacity(.18)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawRRect(r.inflate(3), glow);
+    final body = Paint()..color = const Color(0xFF7A4725);
+    canvas.drawRRect(r, body);
+    canvas.drawRect(
+      Rect.fromLTWH(e.rect.x, e.rect.y + 13, e.rect.w, 6),
+      Paint()..color = const Color(0xFFD89B3D),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 3, e.rect.y + 11, 6, 10),
+      Paint()..color = const Color(0xFFFFD54A),
+    );
+    canvas.drawLine(
+      Offset(e.rect.x + 7, e.rect.y + 6),
+      Offset(e.rect.right - 7, e.rect.y + 6),
+      Paint()
+        ..color = const Color(0xFFFFD54A).withOpacity(.8)
+        ..strokeWidth = 2,
     );
   }
 
