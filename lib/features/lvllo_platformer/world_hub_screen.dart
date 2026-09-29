@@ -239,6 +239,102 @@ class _LvlloPlatformerHubScreenState extends State<LvlloPlatformerHubScreen> {
                   ),
                 ),
 
+              // SEASON+ — new 33-stage Hard-only world. Stage 01 is the first implemented prototype.
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                sliver: SliverToBoxAdapter(
+                  child: CosmicPanel(
+                    glow: true,
+                    padding: const EdgeInsets.all(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () async {
+                        HapticFeedback.mediumImpact();
+                        final economy = await EconomyManager.checkEconomy();
+                        if (economy['isOwnerTestAccount'] != true && (economy['lives'] as int? ?? 0) <= 0) {
+                          if (mounted) await showLifeRecoveryDialog(context);
+                          return;
+                        }
+                        if (!mounted) return;
+                        await Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => TrollGame(
+                              stageId: 201,
+                              startRound: 1,
+                              maxRounds: 1,
+                              levelsPerMechanic: 1,
+                              mechanicOffset: 0,
+                              seasonPlusStage: true,
+                              onWin: (_) {
+                                if (Navigator.of(context).canPop()) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                              onFail: () {
+                                if (Navigator.of(context).canPop()) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        children: [
+                          const Text(
+                            'SEASON +',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 3,
+                              color: GameColors.accentBright,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'STAGE 01 • NEON RUINS',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'HARD • 10,600+ LENGTH • 12 VARIED TRAPS • NEW ARCHITECTURE',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: GameColors.accentBright.withOpacity(.45)),
+                              color: GameColors.accent.withOpacity(.08),
+                            ),
+                            child: const Text(
+                              'PLAY STAGE 01',
+                              style: TextStyle(
+                                color: GameColors.accentBright,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               // Isolated visual/gameplay prototype. It does not touch the existing 75 stages.
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
