@@ -26,6 +26,7 @@ class TrollGame extends StatefulWidget {
     this.duelMatchId,
     this.duelSeed,
     this.testStage = false,
+    this.seasonPlusStage = false,
   });
   final void Function(int score)? onWin;
   final VoidCallback? onFail;
@@ -39,6 +40,7 @@ class TrollGame extends StatefulWidget {
   final String? duelMatchId;
   final int? duelSeed;
   final bool testStage;
+  final bool seasonPlusStage;
 
   @override
   State<TrollGame> createState() => _TrollGameState();
@@ -74,6 +76,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       mechanicOffset: widget.mechanicOffset,
       stageSeedOverride: widget.duelSeed ?? widget.stageSeedOverride,
       testStageMode: widget.testStage,
+      seasonPlusStageMode: widget.seasonPlusStage,
     );
     TrollEngine.godMode = false;
     _syncOwnerTestMode();
@@ -196,7 +199,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     if (_rewardProcessed) return;
     _rewardProcessed = true;
     
-    if (widget.testStage) {
+    if (widget.testStage || widget.seasonPlusStage) {
       if (!mounted) return;
       setState(() { _victoryVisible = true; _stageReward = {'gold': 0, 'gems': 0}; });
       HapticFeedback.heavyImpact();
@@ -308,7 +311,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                           child: _hudPill(
                             icon: Icons.bolt_rounded,
                             color: const Color(0xFF5CF5FF),
-                            text: 'STAGE ${_engine.round > 100 ? _engine.round - 100 : _engine.round}',
+                            text: widget.seasonPlusStage ? 'SEASON + • STAGE 01' : (widget.testStage ? 'TEST STAGE 01' : 'STAGE ${_engine.round > 100 ? _engine.round - 100 : _engine.round}'),
                           ),
                         ),
                       ),
@@ -506,23 +509,23 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     final gems = reward['gems'] as int? ?? 0;
     final gold = reward['gold'] as int? ?? 0;
     final isLastStage = widget.stageId >= 175;
-    final displayStage = widget.testStage ? 'TEST STAGE 01' : 'STAGE ' + (widget.stageId > 100 ? widget.stageId - 100 : widget.stageId).toString();
+    final displayStage = widget.seasonPlusStage ? 'SEASON + • STAGE 01' : (widget.testStage ? 'TEST STAGE 01' : 'STAGE ' + (widget.stageId > 100 ? widget.stageId - 100 : widget.stageId).toString());
     return _buildOverlayCard(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.emoji_events_rounded, color: Color(0xFF5CF5FF), size: 58),
           const SizedBox(height: 10),
-          Text(widget.testStage ? 'TEST STAGE COMPLETE' : 'STAGE COMPLETE', style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          Text(widget.seasonPlusStage ? 'SEASON + STAGE COMPLETE' : (widget.testStage ? 'TEST STAGE COMPLETE' : 'STAGE COMPLETE', style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           const SizedBox(height: 5),
           Text(displayStage, style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 18),
           Text(
-            widget.testStage ? 'QA TEST MODE • NO ECONOMY REWARD' : (isFirst ? 'FIRST CLEAR REWARD' : 'REPLAY REWARD'),
+            (widget.seasonPlusStage || widget.testStage) ? 'HARD PROTOTYPE • NO ECONOMY REWARD' : (isFirst ? 'FIRST CLEAR REWARD' : 'REPLAY REWARD'),
             style: const TextStyle(color: Color(0xFF8EA7C7), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.6),
           ),
           const SizedBox(height: 10),
-          if (widget.testStage)
+          if (widget.seasonPlusStage || widget.testStage)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               decoration: BoxDecoration(color: const Color(0xFF071225), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x335CF5FF))),
@@ -531,7 +534,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                 children: [
                   Icon(Icons.science_rounded, color: Color(0xFF5CF5FF), size: 30),
                   SizedBox(width: 10),
-                  Text('PROTOTYPE CLEARED', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
+                  Text(widget.seasonPlusStage ? 'SEASON + PROTOTYPE CLEARED' : 'PROTOTYPE CLEARED', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
                 ],
               ),
             )
@@ -556,7 +559,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
             spacing: 10,
             runSpacing: 10,
             children: [
-              if (!widget.testStage && !isLastStage)
+              if (!widget.testStage && !widget.seasonPlusStage && !isLastStage)
                 FilledButton.icon(onPressed: widget.onNextStage, icon: const Icon(Icons.arrow_forward_rounded), label: const Text('NEXT STAGE')),
               FilledButton.icon(onPressed: _retryAfterVictory, icon: const Icon(Icons.replay_rounded), label: const Text('REPLAY STAGE')),
               OutlinedButton.icon(onPressed: widget.onFail, icon: const Icon(Icons.map_rounded), label: const Text('WORLD MAP')),
@@ -720,7 +723,7 @@ class _TrollPainter extends CustomPainter {
     }
 
 
-    if (engine.testStageMode) {
+    if (engine.testStageMode || engine.seasonPlusStageMode) {
       _drawTestBackground(canvas);
     } else {
       _drawBackground(canvas);
@@ -737,7 +740,7 @@ class _TrollPainter extends CustomPainter {
     for (var e in engine.entities) {
       if (!e.isVisible) continue;
 
-      if (engine.testStageMode) {
+      if (engine.testStageMode || engine.seasonPlusStageMode) {
         if (e.id.startsWith('saw_')) {
           if (e.isVisible) _drawTestSaw(canvas, e.rect);
         } else if (e.id.startsWith('laser_')) {
