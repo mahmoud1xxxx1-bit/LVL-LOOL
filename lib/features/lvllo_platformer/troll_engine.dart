@@ -1250,7 +1250,7 @@ class TrollEngine {
     final floors = <List<double>>[
       [0, 820], [960, 1750], [1890, 2720], [2860, 3720],
       [3860, 4720], [4860, 5750], [5890, 6800], [6940, 7810],
-      [7950, 8820], [8960, 9780], [9920, 10650],
+      [7950, 8400], [8960, 9780], [9920, 10650],
     ];
     for (var i = 0; i < floors.length; i++) {
       block('plus_floor_$i', floors[i][0], 540,
@@ -1318,7 +1318,6 @@ class TrollEngine {
     // 06/12 — Crouch-only passage. Solid ceiling prevents the bypass.
     block('crouch_ceiling_1', 3000, 430, 420, 60,
         color: const Color(0xFF0E1B36), solid: true);
-    spike('crouch_spike_1', 3180, 512, 72);
 
     // 07/12 — Second pit/platform lesson, same mechanic now at higher speed.
     block('moving_platform_plus_2', 3950, 410, 155, 24,
@@ -1353,11 +1352,12 @@ class TrollEngine {
     block('final_fight_cover', 7600, 410, 150, 24,
         color: const Color(0xFF213C68));
 
-    // 12/12 — Final pit crossing + finish. No new mechanic is introduced.
-    block('final_moving_platform', 8500, 410, 160, 24,
-        color: const Color(0xFF1B4168));
-    traps.add(TestMovingPlatformTrap('final_moving_platform', 8450, 8740, 175));
-    block('final_recovery_plus', 8800, 420, 250, 24,
+    // 12/12 — Final pit crossing + finish. Static stepping stones only;
+    // no new mechanic is introduced and Moving Platform stays limited to twice.
+    block('final_step_1', 8470, 455, 110, 24, color: const Color(0xFF1B4168));
+    block('final_step_2', 8630, 395, 110, 24, color: const Color(0xFF1B4168));
+    block('final_step_3', 8790, 435, 110, 24, color: const Color(0xFF1B4168));
+    block('final_recovery_plus', 8950, 420, 250, 24,
         color: const Color(0xFF213C68));
 
     // Final runway is continuous and cannot be bypassed around a hidden wall.
