@@ -1202,15 +1202,13 @@ class TrollEngine {
       ));
     }
 
-    void spike(String id, double x, double y, double w,
-        {bool inverted = false}) {
+    void spike(String id, double x, double y, double w) {
       entities.add(TrollEntity(
         id: id,
         type: TrollEntityType.spike,
         rect: RectD(x, y, w, 28),
         color: const Color(0xFFFF3DAF),
         isSolid: false,
-        isInverted: inverted,
       ));
     }
 
@@ -1242,33 +1240,30 @@ class TrollEngine {
       ));
     }
 
-    // SEASON+ STAGE 01 — NEON RUINS
-    // One coherent learning arc only:
-    // movement -> double jump -> fireball combat -> crouch -> controlled hazards.
-    // No reverse controls, gravity flip, fake solids, laser corridor, or moving
-    // doors in this stage. Those ideas are reserved for later stages.
+    // STAGE 01 DESIGN LOCK:
+    // Neon Ruins teaches only the Season+ foundation:
+    // 1) movement, 2) double-jump, 3) fireball combat, 4) crouch,
+    // 5) simple readable hazards. No reverse controls, gravity flip, fake
+    // floors, lasers, chase walls or moving doors in this stage.
+    // Same hazard type is never used more than twice as a named sequence.
+
     final floors = <List<double>>[
       [0, 820], [960, 1750], [1890, 2720], [2860, 3720],
       [3860, 4720], [4860, 5750], [5890, 6800], [6940, 7810],
       [7950, 8820], [8960, 9780], [9920, 10650],
     ];
     for (var i = 0; i < floors.length; i++) {
-      block(
-        'plus_floor_$i',
-        floors[i][0],
-        540,
-        floors[i][1] - floors[i][0],
-        60,
-        color: i.isEven ? const Color(0xFF101A38) : const Color(0xFF152447),
-      );
+      block('plus_floor_$i', floors[i][0], 540,
+          floors[i][1] - floors[i][0], 60,
+          color: i.isEven ? const Color(0xFF101A38) : const Color(0xFF152447));
     }
 
-    // Architecture is visual only unless explicitly marked solid below.
+    // Visual architecture only. It never creates a bypassable gameplay wall.
     final ledges = <List<double>>[
-      [360, 430, 220], [1120, 410, 220], [1430, 350, 210],
-      [2060, 420, 220], [3160, 420, 220], [4030, 400, 230],
-      [5200, 405, 220], [6060, 395, 230], [7350, 400, 220],
-      [8240, 405, 230], [9250, 390, 230], [10100, 405, 240],
+      [360, 430, 220], [1120, 410, 220], [1980, 410, 220],
+      [2920, 405, 220], [3960, 400, 230], [4940, 405, 220],
+      [5900, 395, 230], [6960, 400, 220], [8000, 405, 230],
+      [9000, 390, 230], [10000, 405, 240],
     ];
     for (var i = 0; i < ledges.length; i++) {
       block('plus_ledge_$i', ledges[i][0], ledges[i][1], ledges[i][2], 28,
@@ -1277,9 +1272,9 @@ class TrollEngine {
 
     final pillars = <List<double>>[
       [520, 300, 42, 240], [1260, 250, 42, 290], [2180, 220, 44, 320],
-      [3220, 230, 46, 310], [4320, 230, 44, 300], [5480, 220, 46, 320],
-      [6760, 230, 44, 310], [7640, 220, 46, 320], [8680, 230, 44, 300],
-      [9640, 220, 46, 320], [10380, 230, 46, 310],
+      [3140, 230, 46, 310], [4100, 230, 44, 300], [5100, 220, 46, 320],
+      [6060, 230, 44, 310], [7040, 220, 46, 320], [8060, 230, 44, 300],
+      [9060, 220, 46, 320], [10160, 230, 46, 310],
     ];
     for (var i = 0; i < pillars.length; i++) {
       block('plus_pillar_$i', pillars[i][0], pillars[i][1], pillars[i][2],
@@ -1297,75 +1292,76 @@ class TrollEngine {
           color: const Color(0xFF182A4A), solid: false);
     }
 
-    // 01 — Safe opening + first sword encounter.
-    enemy('enemy_sword_1', 'sword', 560, 494,
-        left: 470, right: 730, speed: 62, health: 1);
-    chest('chest_plus_1', 735, 465, 'gold', 10);
+    // 01/12 — First enemy teaches the approved sword enemy.
+    enemy('enemy_sword_1', 'sword', 500, 494,
+        left: 430, right: 700, speed: 62, health: 1);
+    chest('chest_plus_1', 720, 465, 'gold', 10);
 
-    // 02 — First spike rhythm: the player learns the double jump.
-    spike('spike_plus_1', 1080, 512, 72);
-    spike('spike_plus_2', 1190, 512, 72);
-    block('double_jump_recovery', 1290, 420, 210, 24,
+    // 02/12 — First spike sequence teaches double-jump timing.
+    spike('spike_plus_1', 1160, 512, 72);
+    spike('spike_plus_2', 1270, 512, 72);
+    block('double_jump_recovery', 1380, 420, 210, 24,
         color: const Color(0xFF1B355D));
 
-    // 03 — Breakable chest: fireball is introduced with no other gimmick.
-    chest('chest_plus_2', 1580, 465, 'gems', 2);
+    // 03/12 — Fireball-only chest lesson. No second mechanic in this room.
+    chest('chest_plus_2', 1710, 465, 'gems', 2);
 
-    // 04 — Pit + moving platform. The pit is instant death; platform is the route.
-    block('moving_platform_plus_1', 1770, 420, 150, 24,
+    // 04/12 — First pit: moving platform is the only route across.
+    block('moving_platform_plus_1', 1940, 420, 150, 24,
         color: const Color(0xFF1B4168));
-    traps.add(TestMovingPlatformTrap('moving_platform_plus_1', 1720, 1950, 150));
+    traps.add(TestMovingPlatformTrap('moving_platform_plus_1', 1900, 2160, 150));
 
-    // 05 — Hammer Guard encounter. Fireball or a clean jump are both valid.
-    enemy('enemy_hammer_1', 'hammer', 2130, 494,
-        left: 2020, right: 2360, speed: 58, health: 2);
+    // 05/12 — Hammer Guard. A clean jump or fireball solves the encounter.
+    enemy('enemy_hammer_1', 'hammer', 2450, 494,
+        left: 2320, right: 2680, speed: 58, health: 2);
 
-    // 06 — Crouch section: low ceiling is a real solid barrier, not decoration.
-    block('crouch_ceiling_1', 2470, 430, 360, 60,
+    // 06/12 — Crouch-only passage. Solid ceiling prevents the bypass.
+    block('crouch_ceiling_1', 3000, 430, 420, 60,
         color: const Color(0xFF0E1B36), solid: true);
-    spike('crouch_spike_1', 2580, 512, 72);
+    spike('crouch_spike_1', 3180, 512, 72);
 
-    // 07 — Second moving-platform gap, with a recovery ledge.
-    block('moving_platform_plus_2', 2920, 410, 155, 24,
+    // 07/12 — Second pit/platform lesson, same mechanic now at higher speed.
+    block('moving_platform_plus_2', 3950, 410, 155, 24,
         color: const Color(0xFF1B4168));
-    traps.add(TestMovingPlatformTrap('moving_platform_plus_2', 2880, 3160, 155));
-    block('platform_recovery_2', 3210, 430, 210, 24,
+    traps.add(TestMovingPlatformTrap('moving_platform_plus_2', 3900, 4210, 170));
+    block('platform_recovery_2', 4280, 430, 210, 24,
         color: const Color(0xFF1B355D));
 
-    // 08 — Knife Thief: fast close-range pressure in an open arena.
-    enemy('enemy_knife_1', 'knife', 3470, 494,
-        left: 3340, right: 3690, speed: 94, health: 1);
-    chest('chest_plus_3', 3695, 465, 'heart', 1);
+    // 08/12 — Knife Thief: faster enemy in an open arena.
+    enemy('enemy_knife_1', 'knife', 4580, 494,
+        left: 4440, right: 4750, speed: 94, health: 1);
+    chest('chest_plus_3', 4760, 465, 'heart', 1);
 
-    // 09 — Falling-floor chamber: double jump is the only intended escape.
+    // 09/12 — Falling-floor chamber: the player must double-jump.
     for (int i = 0; i < 4; i++) {
-      block('fall_plus_$i', 3860 + i * 55, 540, 55, 60);
+      block('fall_plus_$i', 5050 + i * 55, 540, 55, 60);
     }
     traps.add(FallingPlatformTrap(
-      RectD(3810, 495, 360, 120),
+      RectD(5000, 495, 360, 120),
       List.generate(4, (i) => 'fall_plus_$i'),
     ));
 
-    // 10 — Spike timing. No new control gimmick is introduced here.
-    spike('spike_plus_3', 4400, 512, 72);
-    spike('spike_plus_4', 4510, 512, 72);
+    // 10/12 — Second and final spike sequence; precision without new rules.
+    spike('spike_plus_3', 6150, 512, 72);
+    spike('spike_plus_4', 6260, 512, 72);
 
-    // 11 — Final fight: sword + hammer in one controlled arena.
-    enemy('enemy_sword_2', 'sword', 5200, 494,
-        left: 5040, right: 5450, speed: 76, health: 2);
-    enemy('enemy_hammer_2', 'hammer', 5520, 494,
-        left: 5450, right: 5700, speed: 58, health: 2);
-    block('final_fight_cover', 5310, 410, 150, 24,
+    // 11/12 — Final combat arena combines only already-taught enemies.
+    enemy('enemy_sword_2', 'sword', 7480, 494,
+        left: 7260, right: 7700, speed: 76, health: 2);
+    enemy('enemy_hammer_2', 'hammer', 7840, 494,
+        left: 7750, right: 8120, speed: 58, health: 2);
+    block('final_fight_cover', 7600, 410, 150, 24,
         color: const Color(0xFF213C68));
 
-    // 12 — Finish approach: short precision spikes, then the real finish door.
-    spike('final_spike_plus_1', 6100, 512, 72);
-    spike('final_spike_plus_2', 6210, 512, 72);
-    block('final_recovery_plus', 6330, 420, 250, 24,
+    // 12/12 — Final pit crossing + finish. No new mechanic is introduced.
+    block('final_moving_platform', 8500, 410, 160, 24,
+        color: const Color(0xFF1B4168));
+    traps.add(TestMovingPlatformTrap('final_moving_platform', 8450, 8740, 175));
+    block('final_recovery_plus', 8800, 420, 250, 24,
         color: const Color(0xFF213C68));
 
-    // Clean final runway. No hidden bypass wall.
-    block('finish_platform', 6450, 540, 420, 60,
+    // Final runway is continuous and cannot be bypassed around a hidden wall.
+    block('finish_platform', 9300, 540, 1350, 60,
         color: const Color(0xFF17264A));
     entities.add(TrollEntity(
       id: 'door',
