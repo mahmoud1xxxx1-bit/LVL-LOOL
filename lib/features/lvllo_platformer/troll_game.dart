@@ -68,6 +68,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   int _gems = 0;
   String? _rewardToast;
   int _rewardFlightToken = 0;
+  String _rewardFlightKind = 'gold';
 
   @override
   void initState() {
@@ -336,7 +337,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
                   child: Row(
                     children: [
-                      const _LifeHud(),
+                      _LifeHud(seasonPlus: widget.seasonPlusStage),
                       if (widget.seasonPlusStage) ...[
                         const SizedBox(width: 6),
                         _hitHud(),
@@ -482,11 +483,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                         ),
                       );
                     },
-                    child: const Icon(
-                      Icons.monetization_on_rounded,
-                      color: Color(0xFFFFD54A),
-                      size: 30,
-                    ),
+                    child: _SeasonPlusCurrencyIcon(kind: _rewardFlightKind, size: 30),
                   ),
                 ),
               ),
@@ -757,6 +754,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   }
 
   Widget _currencyHud(IconData icon, int value, Color color) {
+    final kind = color == const Color(0xFFFFD54A) ? 'gold' : 'gems';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
@@ -767,7 +765,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 16),
+          _SeasonPlusCurrencyIcon(kind: kind, size: 17),
           const SizedBox(width: 4),
           Text(
             '$value',
@@ -877,7 +875,8 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
 }
 
 class _LifeHud extends StatefulWidget {
-  const _LifeHud();
+  const _LifeHud({this.seasonPlus = false});
+  final bool seasonPlus;
   @override State<_LifeHud> createState() => _LifeHudState();
 }
 class _LifeHudState extends State<_LifeHud> {
@@ -902,13 +901,80 @@ class _LifeHudState extends State<_LifeHud> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.favorite_rounded, color: Color(0xFFFF5478), size: 17),
+          widget.seasonPlus
+              ? const _SeasonPlusCurrencyIcon(kind: 'heart', size: 18)
+              : const Icon(Icons.favorite_rounded, color: Color(0xFFFF5478), size: 17),
           const SizedBox(width: 6),
           Text('$_lives/$_max', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
         ],
       ),
     );
   }
+}
+
+class _SeasonPlusCurrencyIcon extends StatelessWidget {
+  const _SeasonPlusCurrencyIcon({required this.kind, required this.size});
+  final String kind;
+  final double size;
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size.square(size),
+      painter: _SeasonPlusCurrencyPainter(kind),
+    );
+  }
+}
+
+class _SeasonPlusCurrencyPainter extends CustomPainter {
+  _SeasonPlusCurrencyPainter(this.kind);
+  final String kind;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()..style = PaintingStyle.fill;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    if (kind == 'heart') {
+      p.color = const Color(0xFFFF4F83);
+      final path = Path()
+        ..moveTo(cx, size.height * .86)
+        ..cubicTo(size.width * .08, size.height * .53, size.width * .14, size.height * .15, size.width * .38, size.height * .18)
+        ..cubicTo(size.width * .49, size.height * .19, cx, size.height * .29, cx, size.height * .29)
+        ..cubicTo(cx, size.height * .29, size.width * .51, size.height * .19, size.width * .62, size.height * .18)
+        ..cubicTo(size.width * .86, size.height * .15, size.width * .92, size.height * .53, cx, size.height * .86)
+        ..close();
+      canvas.drawPath(path, p);
+      p.color = const Color(0xFFFFB5C9);
+      canvas.drawCircle(Offset(size.width * .35, size.height * .32), size.width * .07, p);
+    } else if (kind == 'gold') {
+      p.color = const Color(0xFFFFC83D);
+      canvas.drawCircle(Offset(cx, cy), size.width * .42, p);
+      p.color = const Color(0xFFFFE27A);
+      canvas.drawCircle(Offset(cx - size.width * .08, cy - size.height * .10), size.width * .10, p);
+      final tp = TextPainter(
+        text: const TextSpan(text: '\$', style: TextStyle(color: Color(0xFF7A4B00), fontSize: 9, fontWeight: FontWeight.w900)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2 + .5));
+    } else {
+      p.color = const Color(0xFF39E7FF);
+      final path = Path()
+        ..moveTo(cx, size.height * .04)
+        ..lineTo(size.width * .86, cy)
+        ..lineTo(cx, size.height * .96)
+        ..lineTo(size.width * .14, cy)
+        ..close();
+      canvas.drawPath(path, p);
+      p.color = const Color(0xFFB9F8FF).withOpacity(.8);
+      final shine = Path()
+        ..moveTo(cx, size.height * .16)
+        ..lineTo(size.width * .43, cy)
+        ..lineTo(cx, size.height * .47)
+        ..close();
+      canvas.drawPath(shine, p);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _SeasonPlusCurrencyPainter oldDelegate) => oldDelegate.kind != kind;
 }
 class _TrollPainter extends CustomPainter {
   _TrollPainter(this.engine, this.stageId);
