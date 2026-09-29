@@ -64,6 +64,10 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   int _duelStartTime = 0;
   bool _duelTimeout = false;
   bool _ownerTestMode = false;
+  int _gold = 0;
+  int _gems = 0;
+  String? _rewardToast;
+  int _rewardFlightToken = 0;
 
   @override
   void initState() {
@@ -97,6 +101,8 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       setState(() {
         _livesRemaining = economy['lives'] as int? ?? 999;
         _maxLives = economy['maxLives'] as int? ?? 999;
+        _gold = economy['gold'] as int? ?? 0;
+        _gems = economy['gems'] as int? ?? 0;
       });
     }
   }
@@ -110,6 +116,26 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     _lastTime = elapsed;
 
     _engine.update(dt);
+
+    if (widget.seasonPlusStage && _engine.rewardEvents.isNotEmpty) {
+      final events = List<StageRewardEvent>.from(_engine.rewardEvents);
+      _engine.rewardEvents.clear();
+      for (final event in events) {
+        if (event.type == 'gold') {
+          await EconomyManager.addGold(event.amount);
+          _gold += event.amount;
+          _rewardToast = '+${event.amount} GOLD';
+        } else if (event.type == 'gems') {
+          await EconomyManager.addGems(event.amount);
+          _gems += event.amount;
+          _rewardToast = '+${event.amount} GEMS';
+        } else if (event.type == 'heart') {
+          _engine.bonusHitPoints += 1;
+          _rewardToast = '+1 HEART HIT';
+        }
+        _rewardFlightToken++;
+      }
+    }
     if (_ownerTestMode) TrollEngine.godMode = true;
     
     if (widget.duelMatchId != null && !_duelTimeout) {
@@ -261,10 +287,19 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) _engine.movingLeft = true;
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) _engine.movingRight = true;
-      if (event.logicalKey == LogicalKeyboardKey.space || event.logicalKey == LogicalKeyboardKey.arrowUp) _engine.jumping = true;
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) _engine.setCrouching(true);
+      if (event.logicalKey == LogicalKeyboardKey.keyX ||
+          event.logicalKey == LogicalKeyboardKey.keyC) {
+        _engine.shootFireball();
+      }
+      if (event.logicalKey == LogicalKeyboardKey.space ||
+          event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        _engine.jumping = true;
+      }
     } else if (event is KeyUpEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) _engine.movingLeft = false;
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) _engine.movingRight = false;
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) _engine.setCrouching(false);
     }
   }
 
@@ -305,6 +340,12 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   child: Row(
                     children: [
                       const _LifeHud(),
+                      if (widget.seasonPlusStage) ...[
+                        const SizedBox(width: 6),
+                        _currencyHud(Icons.monetization_on_rounded, _gold, const Color(0xFFFFD54A)),
+                        const SizedBox(width: 6),
+                        _currencyHud(Icons.diamond_rounded, _gems, const Color(0xFF5CF5FF)),
+                      ],
                       const SizedBox(width: 8),
                       Expanded(
                         child: Center(
@@ -325,13 +366,14 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
-            // Mobile controls: the entire right half of the playfield is the jump zone.
-            // The left/right movement uses a compact directional gear at bottom-left.
+            // Season+ controls: jump remains the main right-side action;
+            // fire/crouch are compact buttons so the player can use the new
+            // combat mechanics without losing the existing movement layout.
             Positioned(
               right: 0,
               bottom: 0,
               width: MediaQuery.sizeOf(context).width * 0.5,
-              height: MediaQuery.sizeOf(context).height * 0.5,
+              height: MediaQuery.sizeOf(context).height * 0.46,
               child: Listener(
                 behavior: HitTestBehavior.translucent,
                 onPointerDown: (_) {
@@ -345,6 +387,34 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
+            if (widget.seasonPlusStage)
+              Positioned(
+                right: 18,
+                bottom: 18,
+                child: SafeArea(
+                  top: false,
+                  left: false,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.keyboard_double_arrow_down_rounded,
+                        label: 'DOWN',
+                        onDown: () => _engine.setCrouching(true),
+                        onUp: () => _engine.setCrouching(false),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.local_fire_department_rounded,
+                        label: 'FIRE',
+                        onDown: () => _engine.shootFireball(),
+                        onUp: () {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             Positioned(
               left: 18,
               bottom: 18,
@@ -355,6 +425,70 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
+
+            if (widget.seasonPlusStage && _rewardToast != null)
+              Positioned(
+                top: 82,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xDD071226),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0x555CF5FF)),
+                      ),
+                      child: Text(
+                        _rewardToast!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            if (widget.seasonPlusStage && _rewardFlightToken > 0)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey(_rewardFlightToken),
+                    duration: const Duration(milliseconds: 850),
+                    tween: Tween(begin: 0, end: 1),
+                    onEnd: () {
+                      if (!mounted) return;
+                      setState(() {
+                        _rewardFlightToken = 0;
+                        _rewardToast = null;
+                      });
+                    },
+                    builder: (context, t, child) {
+                      final align = Alignment.lerp(
+                        Alignment.center,
+                        const Alignment(0.92, -0.92),
+                        t,
+                      )!;
+                      return Align(
+                        alignment: align,
+                        child: Transform.scale(
+                          scale: 1.0 - t * .35,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFFFD54A),
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
 
             if (_deathVisible)
               _buildDeathOverlay(),
@@ -599,6 +733,62 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
           width: 44,
           height: 44,
           child: Icon(icon, color: Colors.white, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _currencyHud(IconData icon, int value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xD90A1124),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            '$value',
+            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onDown,
+    required VoidCallback onUp,
+  }) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) {
+        if (_paused || _deathVisible || _victoryVisible) return;
+        onDown();
+        HapticFeedback.selectionClick();
+      },
+      onPointerUp: (_) => onUp(),
+      onPointerCancel: (_) => onUp(),
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          color: const Color(0xCC0A1124),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0x445CF5FF)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 25),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 7, fontWeight: FontWeight.w800)),
+          ],
         ),
       ),
     );
