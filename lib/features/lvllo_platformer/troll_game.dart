@@ -1868,7 +1868,7 @@ class _TrollPainter extends CustomPainter {
         ? 1.0
         : (engine.player.rect.centerX - e.rect.centerX).sign;
     final moving = e.vx.abs() > 3;
-    final bob = moving ? sin(e.phase * 8.0) * 1.2 : sin(e.phase * 3.0) * .5;
+    final bob = moving ? sin(e.rect.left * 0.08) * 1.2 : sin(e.rect.left * 0.03) * .5;
 
     canvas.save();
     canvas.translate(e.rect.centerX, e.rect.bottom);
@@ -2555,7 +2555,7 @@ class _TrollPainter extends CustomPainter {
   void _drawPlayer(Canvas canvas, TrollEntity p, {double opacity = 1.0}) {
     final moving = p.vx.abs() > 8;
     final airborne = p.vy.abs() > 25;
-    final crouched = engine.isCrouching;
+    final crouched = engine.crouching;
     final step = moving ? sin(engine.stageSeed * .17 + p.rect.left * .035) * 2.5 : 0.0;
     final squash = airborne ? 1.04 : (crouched ? .82 : 1.0);
 
@@ -2650,7 +2650,7 @@ class _TrollPainter extends CustomPainter {
     }
 
     // Fireball launch hand/arm is visible when the player is facing right.
-    if (engine.fireCooldown > 0) {
+    if (engine.shootCooldown > 0) {
       canvas.drawCircle(
         const Offset(22, -35),
         5,
