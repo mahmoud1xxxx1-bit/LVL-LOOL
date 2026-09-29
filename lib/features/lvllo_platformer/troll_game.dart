@@ -64,6 +64,10 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   int _duelStartTime = 0;
   bool _duelTimeout = false;
   bool _ownerTestMode = false;
+  int _gold = 0;
+  int _gems = 0;
+  String? _rewardToast;
+  int _rewardFlightToken = 0;
 
   @override
   void initState() {
@@ -88,17 +92,16 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
 
   Future<void> _syncOwnerTestMode() async {
     final enabled = await EconomyManager.isOwnerTestModeEnabled();
+    final economy = await EconomyManager.checkEconomy();
     if (!mounted) return;
     _ownerTestMode = enabled;
     TrollEngine.godMode = enabled;
-    if (enabled) {
-      final economy = await EconomyManager.checkEconomy();
-      if (!mounted) return;
-      setState(() {
-        _livesRemaining = economy['lives'] as int? ?? 999;
-        _maxLives = economy['maxLives'] as int? ?? 999;
-      });
-    }
+    setState(() {
+      _livesRemaining = economy['lives'] as int? ?? (enabled ? 999 : 10);
+      _maxLives = economy['maxLives'] as int? ?? (enabled ? 999 : 10);
+      _gold = economy['gold'] as int? ?? 0;
+      _gems = economy['gems'] as int? ?? 0;
+    });
   }
 
   void _onTick(Duration elapsed) {
@@ -110,6 +113,26 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     _lastTime = elapsed;
 
     _engine.update(dt);
+
+    if (widget.seasonPlusStage && _engine.rewardEvents.isNotEmpty) {
+      final events = List<StageRewardEvent>.from(_engine.rewardEvents);
+      _engine.rewardEvents.clear();
+      for (final event in events) {
+        if (event.type == 'gold') {
+          EconomyManager.addGold(event.amount);
+          _gold += event.amount;
+          _rewardToast = '+${event.amount} GOLD';
+        } else if (event.type == 'gems') {
+          EconomyManager.addGems(event.amount);
+          _gems += event.amount;
+          _rewardToast = '+${event.amount} GEMS';
+        } else if (event.type == 'heart') {
+          _engine.bonusHitPoints += 1;
+          _rewardToast = '+1 HEART HIT';
+        }
+        _rewardFlightToken++;
+      }
+    }
     if (_ownerTestMode) TrollEngine.godMode = true;
     
     if (widget.duelMatchId != null && !_duelTimeout) {
@@ -261,10 +284,19 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) _engine.movingLeft = true;
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) _engine.movingRight = true;
-      if (event.logicalKey == LogicalKeyboardKey.space || event.logicalKey == LogicalKeyboardKey.arrowUp) _engine.jumping = true;
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) _engine.setCrouching(true);
+      if (event.logicalKey == LogicalKeyboardKey.keyX ||
+          event.logicalKey == LogicalKeyboardKey.keyC) {
+        _engine.shootFireball();
+      }
+      if (event.logicalKey == LogicalKeyboardKey.space ||
+          event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        _engine.jumping = true;
+      }
     } else if (event is KeyUpEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) _engine.movingLeft = false;
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) _engine.movingRight = false;
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) _engine.setCrouching(false);
     }
   }
 
@@ -305,6 +337,16 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   child: Row(
                     children: [
                       const _LifeHud(),
+                      if (widget.seasonPlusStage) ...[
+                        const SizedBox(width: 6),
+                        _hitHud(),
+                      ],
+                      if (widget.seasonPlusStage) ...[
+                        const SizedBox(width: 6),
+                        _currencyHud(Icons.monetization_on_rounded, _gold, const Color(0xFFFFD54A)),
+                        const SizedBox(width: 6),
+                        _currencyHud(Icons.diamond_rounded, _gems, const Color(0xFF5CF5FF)),
+                      ],
                       const SizedBox(width: 8),
                       Expanded(
                         child: Center(
@@ -325,13 +367,14 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
-            // Mobile controls: the entire right half of the playfield is the jump zone.
-            // The left/right movement uses a compact directional gear at bottom-left.
+            // Season+ controls: jump remains the main right-side action;
+            // fire/crouch are compact buttons so the player can use the new
+            // combat mechanics without losing the existing movement layout.
             Positioned(
               right: 0,
               bottom: 0,
               width: MediaQuery.sizeOf(context).width * 0.5,
-              height: MediaQuery.sizeOf(context).height * 0.5,
+              height: MediaQuery.sizeOf(context).height * 0.46,
               child: Listener(
                 behavior: HitTestBehavior.translucent,
                 onPointerDown: (_) {
@@ -345,6 +388,34 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
+            if (widget.seasonPlusStage)
+              Positioned(
+                right: 18,
+                bottom: 18,
+                child: SafeArea(
+                  top: false,
+                  left: false,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.keyboard_double_arrow_down_rounded,
+                        label: 'DOWN',
+                        onDown: () => _engine.setCrouching(true),
+                        onUp: () => _engine.setCrouching(false),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.local_fire_department_rounded,
+                        label: 'FIRE',
+                        onDown: () => _engine.shootFireball(),
+                        onUp: () {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             Positioned(
               left: 18,
               bottom: 18,
@@ -355,6 +426,70 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
               ),
             ),
 
+
+            if (widget.seasonPlusStage && _rewardToast != null)
+              Positioned(
+                top: 82,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xDD071226),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0x555CF5FF)),
+                      ),
+                      child: Text(
+                        _rewardToast!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            if (widget.seasonPlusStage && _rewardFlightToken > 0)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey(_rewardFlightToken),
+                    duration: const Duration(milliseconds: 850),
+                    tween: Tween(begin: 0, end: 1),
+                    onEnd: () {
+                      if (!mounted) return;
+                      setState(() {
+                        _rewardFlightToken = 0;
+                        _rewardToast = null;
+                      });
+                    },
+                    builder: (context, t, child) {
+                      final align = Alignment.lerp(
+                        Alignment.center,
+                        const Alignment(0.92, -0.92),
+                        t,
+                      )!;
+                      return Align(
+                        alignment: align,
+                        child: Transform.scale(
+                          scale: 1.0 - t * .35,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.monetization_on_rounded,
+                      color: Color(0xFFFFD54A),
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
 
             if (_deathVisible)
               _buildDeathOverlay(),
@@ -604,6 +739,79 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
     );
   }
 
+  Widget _hitHud() {
+    final hits = _engine.currentHeartHits.clamp(0, 2);
+    final bonus = _engine.bonusHitPoints;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xD90A1124),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x66FF5478)),
+      ),
+      child: Text(
+        bonus > 0 ? '♥ $hits/2 +$bonus' : '♥ $hits/2',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10),
+      ),
+    );
+  }
+
+  Widget _currencyHud(IconData icon, int value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xD90A1124),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            '$value',
+            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onDown,
+    required VoidCallback onUp,
+  }) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) {
+        if (_paused || _deathVisible || _victoryVisible) return;
+        onDown();
+        HapticFeedback.selectionClick();
+      },
+      onPointerUp: (_) => onUp(),
+      onPointerCancel: (_) => onUp(),
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          color: const Color(0xCC0A1124),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0x445CF5FF)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 25),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 7, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDirectionalGear() {
     return Container(
       width: 126,
@@ -743,7 +951,13 @@ class _TrollPainter extends CustomPainter {
       if (!e.isVisible) continue;
 
       if (engine.testStageMode || engine.seasonPlusStageMode) {
-        if (e.id.startsWith('saw_')) {
+        if (engine.seasonPlusStageMode && e.type == TrollEntityType.enemy) {
+          _drawSeasonPlusEnemy(canvas, e);
+        } else if (engine.seasonPlusStageMode && e.type == TrollEntityType.projectile) {
+          _drawFireball(canvas, e);
+        } else if (engine.seasonPlusStageMode && e.type == TrollEntityType.chest) {
+          _drawRewardChest(canvas, e);
+        } else if (e.id.startsWith('saw_')) {
           if (e.isVisible) _drawTestSaw(canvas, e.rect);
         } else if (e.id.startsWith('laser_')) {
           if (e.isVisible) _drawTestLaser(canvas, e.rect);
@@ -1557,6 +1771,148 @@ class _TrollPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTWH(inner.left + 5, inner.top + 8, 3, inner.height - 16),
       paint,
+    );
+  }
+
+  void _drawSeasonPlusEnemy(Canvas canvas, TrollEntity e) {
+    final p = Paint()..color = const Color(0xFFFF5577);
+    final body = RRect.fromRectAndRadius(
+      e.rect.toRect(),
+      const Radius.circular(8),
+    );
+    p.maskFilter = const MaskFilter.blur(BlurStyle.outer, 8);
+    canvas.drawRRect(body, p);
+    p.maskFilter = null;
+    p.color = const Color(0xFF5A183A);
+    canvas.drawRRect(body.deflate(3), p);
+
+    // Eyes point toward the player.
+    final eye = Paint()..color = const Color(0xFFFFE6F0);
+    final eyeDir = (engine.player.rect.centerX - e.rect.centerX).sign;
+    canvas.drawCircle(
+      Offset(e.rect.x + 13 + eyeDir * 2, e.rect.y + 13),
+      3,
+      eye,
+    );
+    canvas.drawCircle(
+      Offset(e.rect.x + 28 + eyeDir * 2, e.rect.y + 13),
+      3,
+      eye,
+    );
+
+    final weapon = Paint()
+      ..color = const Color(0xFFE7EAF5)
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    final hand = Offset(
+      e.rect.x + (eyeDir >= 0 ? e.rect.w - 5 : 5),
+      e.rect.y + 28,
+    );
+    final weaponEnd = Offset(
+      hand.dx + eyeDir * 28,
+      hand.dy - 14,
+    );
+
+    if (e.enemyKind == 'hammer') {
+      weapon.color = const Color(0xFF9A6B43);
+      weapon.strokeWidth = 7;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      weapon.color = const Color(0xFF4E5260);
+      weapon.strokeWidth = 11;
+      canvas.drawLine(
+        Offset(weaponEnd.dx - eyeDir * 8, weaponEnd.dy - 2),
+        Offset(weaponEnd.dx + eyeDir * 8, weaponEnd.dy - 2),
+        weapon,
+      );
+    } else if (e.enemyKind == 'wood') {
+      weapon.color = const Color(0xFF9A6B43);
+      weapon.strokeWidth = 8;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      weapon.color = const Color(0xFFD8A56B);
+      weapon.strokeWidth = 4;
+      canvas.drawLine(
+        Offset(weaponEnd.dx - eyeDir * 4, weaponEnd.dy - 2),
+        Offset(weaponEnd.dx + eyeDir * 4, weaponEnd.dy - 2),
+        weapon,
+      );
+    } else if (e.enemyKind == 'knife') {
+      weapon.color = const Color(0xFFCFD8E8);
+      weapon.strokeWidth = 5;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      final blade = Path()
+        ..moveTo(weaponEnd.dx, weaponEnd.dy)
+        ..lineTo(weaponEnd.dx + eyeDir * 18, weaponEnd.dy - 7)
+        ..lineTo(weaponEnd.dx + eyeDir * 9, weaponEnd.dy + 5)
+        ..close();
+      canvas.drawPath(blade, weapon);
+    } else {
+      weapon.color = const Color(0xFFCFD8E8);
+      weapon.strokeWidth = 5;
+      canvas.drawLine(hand, weaponEnd, weapon);
+      final blade = Path()
+        ..moveTo(weaponEnd.dx, weaponEnd.dy)
+        ..lineTo(weaponEnd.dx + eyeDir * 34, weaponEnd.dy - 10)
+        ..lineTo(weaponEnd.dx + eyeDir * 24, weaponEnd.dy + 2)
+        ..close();
+      canvas.drawPath(blade, weapon);
+    }
+
+    if (e.health > 1) {
+      final bar = Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w, 4);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(bar, const Radius.circular(2)),
+        Paint()..color = const Color(0x55333333),
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w * (e.health / 2).clamp(0.0, 1.0), 4),
+          const Radius.circular(2),
+        ),
+        Paint()..color = const Color(0xFFFFD54A),
+      );
+    }
+  }
+
+  void _drawFireball(Canvas canvas, TrollEntity e) {
+    final center = Offset(e.rect.x + e.rect.w / 2, e.rect.y + e.rect.h / 2);
+    final glow = Paint()
+      ..color = const Color(0xFFFF6A1A).withOpacity(.28)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    canvas.drawCircle(center, 13, glow);
+    final outer = Paint()..color = const Color(0xFFFF7A21);
+    canvas.drawCircle(center, 8, outer);
+    final inner = Paint()..color = const Color(0xFFFFE27A);
+    canvas.drawCircle(Offset(center.dx - e.vx.sign * 2, center.dy - 1), 4, inner);
+    final flame = Path()
+      ..moveTo(center.dx - e.vx.sign * 7, center.dy)
+      ..lineTo(center.dx - e.vx.sign * 18, center.dy - 5)
+      ..lineTo(center.dx - e.vx.sign * 12, center.dy + 5)
+      ..close();
+    canvas.drawPath(flame, Paint()..color = const Color(0xFFFF3D21));
+  }
+
+  void _drawRewardChest(Canvas canvas, TrollEntity e) {
+    final r = RRect.fromRectAndRadius(e.rect.toRect(), const Radius.circular(7));
+    final glow = Paint()
+      ..color = const Color(0xFFFFD54A).withOpacity(.18)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawRRect(r.inflate(3), glow);
+    final body = Paint()..color = const Color(0xFF7A4725);
+    canvas.drawRRect(r, body);
+    canvas.drawRect(
+      Rect.fromLTWH(e.rect.x, e.rect.y + 13, e.rect.w, 6),
+      Paint()..color = const Color(0xFFD89B3D),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 3, e.rect.y + 11, 6, 10),
+      Paint()..color = const Color(0xFFFFD54A),
+    );
+    canvas.drawLine(
+      Offset(e.rect.x + 7, e.rect.y + 6),
+      Offset(e.rect.right - 7, e.rect.y + 6),
+      Paint()
+        ..color = const Color(0xFFFFD54A).withOpacity(.8)
+        ..strokeWidth = 2,
     );
   }
 

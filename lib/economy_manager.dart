@@ -123,6 +123,18 @@ class EconomyManager {
     );
   }
 
+  static Future<void> addGold(int amount) async {
+    if (amount <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('ld_gold', (prefs.getInt('ld_gold') ?? 0) + amount);
+  }
+
+  static Future<void> addGems(int amount) async {
+    if (amount <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('ld_gems', (prefs.getInt('ld_gems') ?? 0) + amount);
+  }
+
   static Future<void> deductLife() async {
     if (await isOwnerTestModeEnabled()) return;
     final prefs = await SharedPreferences.getInstance();
