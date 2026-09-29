@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-enum TrollEntityType { player, block, spike, door, particle }
+enum TrollEntityType { player, block, spike, door, enemy, projectile, chest, pickup, particle }
 
 class RectD {
   double x, y, w, h;
@@ -20,6 +20,8 @@ class RectD {
   }
   
   Rect toRect() => Rect.fromLTWH(x, y, w, h);
+  double get centerX => x + w / 2;
+  double get centerY => y + h / 2;
 }
 
 class TrollEntity {
@@ -32,6 +34,14 @@ class TrollEntity {
   bool activePhysics;
   double vy;
   bool isInverted;
+  String? enemyKind;
+  String? rewardKind;
+  int rewardAmount;
+  double aiLeft;
+  double aiRight;
+  double aiSpeed;
+  int health;
+  double attackCooldown;
 
   TrollEntity({
     required this.id,
@@ -43,9 +53,23 @@ class TrollEntity {
     this.activePhysics = false,
     this.vy = 0,
     this.isInverted = false,
+    this.enemyKind,
+    this.rewardKind,
+    this.rewardAmount = 0,
+    this.aiLeft = 0,
+    this.aiRight = 0,
+    this.aiSpeed = 70,
+    this.health = 1,
+    this.attackCooldown = 0,
   });
 
   double vx = 0;
+}
+
+class StageRewardEvent {
+  final String type;
+  final int amount;
+  StageRewardEvent(this.type, this.amount);
 }
 
 class Particle {
@@ -913,6 +937,16 @@ class TrollEngine {
   bool movingLeft = false;
   bool movingRight = false;
   bool jumping = false;
+  bool crouching = false;
+  bool firing = false;
+
+  // Season+ combat/mobility systems.
+  int jumpCount = 0;
+  int currentHeartHits = 2;
+  int bonusHitPoints = 0;
+  double hitInvulnerability = 0;
+  double shootCooldown = 0;
+  final List<StageRewardEvent> rewardEvents = <StageRewardEvent>[];
   
   // Pro Mechanics
   double coyoteTimer = 0;
@@ -1000,6 +1034,88 @@ class TrollEngine {
     }
   }
 
+  bool get seasonPlusCombatEnabled => seasonPlusStageMode;
+
+  void setCrouching(bool value) {
+    if (!seasonPlusCombatEnabled || isDead || roundWon) return;
+    if (value == crouching) return;
+    crouching = value;
+    if (crouching) {
+      player.rect.y += 16;
+      player.rect.h = 24;
+    } else {
+      player.rect.y -= 16;
+      player.rect.h = 40;
+    }
+  }
+
+  void shootFireball() {
+    if (!seasonPlusCombatEnabled || isDead || roundWon || shootCooldown > 0) return;
+    final dir = playerFaceDir.sign == 0 ? 1.0 : playerFaceDir.sign;
+    final projectile = TrollEntity(
+      id: 'fireball_${fireballSequence++}',
+      type: TrollEntityType.projectile,
+      rect: RectD(
+        player.rect.x + (dir > 0 ? player.rect.w + 4 : -20),
+        player.rect.y + 10,
+        18,
+        14,
+      ),
+      color: const Color(0xFFFF7A21),
+      isSolid: false,
+    );
+    projectile.vx = dir * 820;
+    projectile.vy = -20;
+    entities.add(projectile);
+    shootCooldown = 0.24;
+    _spawnParticles(projectile.rect.x, projectile.rect.y + 7, 5, const Color(0xFFFFB52E));
+  }
+
+  void _damagePlayer() {
+    if (!seasonPlusCombatEnabled) {
+      killPlayer();
+      return;
+    }
+    if (hitInvulnerability > 0 || isDead || roundWon) return;
+    hitInvulnerability = 0.75;
+    if (bonusHitPoints > 0) {
+      bonusHitPoints--;
+    } else {
+      currentHeartHits--;
+    }
+    _spawnParticles(
+      player.rect.x + player.rect.w / 2,
+      player.rect.y + player.rect.h / 2,
+      16,
+      const Color(0xFFFF5478),
+    );
+    player.vx *= -0.35;
+    player.vy = -260;
+    if (currentHeartHits <= 0 && bonusHitPoints <= 0) {
+      killPlayer();
+    }
+  }
+
+  void _breakChest(TrollEntity chest) {
+    if (!chest.isVisible) return;
+    chest.isVisible = false;
+    final kind = chest.rewardKind ?? 'gold';
+    final amount = chest.rewardAmount > 0 ? chest.rewardAmount : 10;
+    rewardEvents.add(StageRewardEvent(kind, amount));
+    _spawnParticles(
+      chest.rect.x + chest.rect.w / 2,
+      chest.rect.y + chest.rect.h / 2,
+      28,
+      kind == 'gold'
+          ? const Color(0xFFFFD54A)
+          : kind == 'gems'
+              ? const Color(0xFF5CF5FF)
+              : const Color(0xFFFF5478),
+    );
+  }
+
+  int fireballSequence = 0;
+
   void killPlayer() {
     if (isDead || roundWon) return;
     if (TrollEngine.godMode) return;
@@ -1018,6 +1134,13 @@ class TrollEngine {
     allComplete = false;
     completedAsWin = false;
     roundHearts = 1;
+    currentHeartHits = 2;
+    bonusHitPoints = 0;
+    hitInvulnerability = 0;
+    shootCooldown = 0;
+    jumpCount = 0;
+    crouching = false;
+    rewardEvents.clear();
     stageSeed = _seedForRound(round);
     rng = Random(stageSeed);
     _loadLevel(round);
@@ -1054,20 +1177,27 @@ class TrollEngine {
     entities.clear();
     traps.clear();
     particles.clear();
-    maxMapWidth = 10650;
+    rewardEvents.clear();
+    maxMapWidth = 10800;
     cameraX = 0;
     roundWon = false;
     completedAsWin = false;
     isDead = false;
+    currentHeartHits = 2;
+    bonusHitPoints = 0;
+    hitInvulnerability = 0;
+    shootCooldown = 0;
+    jumpCount = 0;
+    crouching = false;
 
     void block(String id, double x, double y, double w, double h,
-        {Color color = const Color(0xFF111A35)}) {
+        {Color color = const Color(0xFF111A35), bool solid = true}) {
       entities.add(TrollEntity(
         id: id,
         type: TrollEntityType.block,
         rect: RectD(x, y, w, h),
         color: color,
-        isSolid: true,
+        isSolid: solid,
       ));
     }
 
@@ -1083,20 +1213,49 @@ class TrollEngine {
       ));
     }
 
-    // SEASON+ STAGE 01 — NEON RUINS
-    // Hard, 10,650+ route. The difficulty comes from timing, reading and
-    // recovery choices — not from unavoidable trap chains.
-    //
-    // Every dangerous floor section has either:
-    //  • a readable jump window,
-    //  • an elevated recovery platform, or
-    //  • a short alternate route.
-    final floors = <List<double>>[
-      [0, 820], [960, 1800], [1940, 2760], [2900, 3800],
-      [3940, 4900], [5040, 6000], [6140, 7000], [7140, 7900],
-      [8040, 8900], [9040, 10000], [10120, 10650],
-    ];
+    void enemy(
+      String id,
+      String kind,
+      double x,
+      double y, {
+      double left = 0,
+      double right = 0,
+      double speed = 70,
+      int health = 1,
+    }) {
+      entities.add(TrollEntity(
+        id: id,
+        type: TrollEntityType.enemy,
+        rect: RectD(x, y, 42, 46),
+        color: const Color(0xFFFF5577),
+        isSolid: false,
+        enemyKind: kind,
+        aiLeft: left == 0 ? x - 100 : left,
+        aiRight: right == 0 ? x + 100 : right,
+        aiSpeed: speed,
+        health: health,
+      ));
+    }
 
+    void chest(String id, double x, double y, String kind, int amount) {
+      entities.add(TrollEntity(
+        id: id,
+        type: TrollEntityType.chest,
+        rect: RectD(x, y, 44, 36),
+        color: const Color(0xFFD99A3D),
+        isSolid: false,
+        rewardKind: kind,
+        rewardAmount: amount,
+      ));
+    }
+
+    // NEON RUINS — 10,800+ route. Hard, but every dangerous sequence has a
+    // readable solution using timing, double-jump, crouch, combat or recovery.
+    final floors = <List<double>>[
+      [0, 820], [960, 1780], [1930, 2780], [2930, 3820],
+      [3970, 4920], [5070, 6010], [6160, 7060], [7210, 8040],
+      [8190, 9130], [9280, 10180], [10330, 10800],
+    ];
     for (var i = 0; i < floors.length; i++) {
       block(
         'plus_floor_$i',
@@ -1104,35 +1263,29 @@ class TrollEngine {
         540,
         floors[i][1] - floors[i][0],
         60,
-        color: i.isEven
-            ? const Color(0xFF101A38)
-            : const Color(0xFF152447),
+        color: i.isEven ? const Color(0xFF101A38) : const Color(0xFF152447),
       );
     }
 
-    // Ruin architecture: staggered ledges, pillars and overhead beams.
+    // IMPORTANT: the previous x=180 wall is intentionally removed. These
+    // structures begin after the safe starting runway and are decorative or
+    // traversable, never a blocking gate at spawn.
     final ledges = <List<double>>[
-      [360, 420, 230], [1120, 390, 220], [1450, 330, 250],
-      [2040, 390, 240], [2360, 320, 220], [3020, 390, 230],
-      [3370, 300, 260], [4050, 400, 220], [4470, 320, 250],
-      [5200, 390, 220], [5580, 300, 250], [6250, 390, 230],
-      [6680, 310, 240], [7250, 400, 230], [7550, 300, 260],
-      [8180, 390, 240], [8500, 300, 260], [9200, 390, 230],
-      [9560, 310, 240], [10200, 390, 250],
+      [420, 430, 230], [1120, 390, 230], [1450, 315, 250],
+      [2040, 400, 230], [2390, 315, 230], [3050, 400, 230],
+      [3400, 300, 260], [4110, 405, 230], [4540, 320, 250],
+      [5220, 400, 220], [5610, 300, 260], [6350, 395, 230],
+      [6760, 305, 240], [7350, 400, 230], [7670, 305, 260],
+      [8310, 400, 230], [8660, 305, 260], [9370, 400, 230],
+      [9700, 310, 240], [10450, 400, 250],
     ];
     for (var i = 0; i < ledges.length; i++) {
-      block(
-        'plus_ledge_$i',
-        ledges[i][0],
-        ledges[i][1],
-        ledges[i][2],
-        28,
-        color: const Color(0xFF172B50),
-      );
+      block('plus_ledge_$i', ledges[i][0], ledges[i][1], ledges[i][2], 28,
+          color: const Color(0xFF172B50));
     }
 
     final pillars = <List<double>>[
-      [180, 300, 42, 240], [760, 250, 46, 290],
+      [520, 300, 42, 240], [760, 250, 46, 290],
       [1260, 250, 42, 290], [2180, 220, 44, 320],
       [3140, 210, 46, 330], [4320, 250, 44, 290],
       [5480, 220, 46, 320], [6860, 230, 44, 310],
@@ -1140,14 +1293,8 @@ class TrollEngine {
       [9740, 220, 46, 320], [10360, 230, 46, 310],
     ];
     for (var i = 0; i < pillars.length; i++) {
-      block(
-        'plus_pillar_$i',
-        pillars[i][0],
-        pillars[i][1],
-        pillars[i][2],
-        pillars[i][3],
-        color: const Color(0xFF0D1732),
-      );
+      block('plus_pillar_$i', pillars[i][0], pillars[i][1], pillars[i][2],
+          pillars[i][3], color: const Color(0xFF0D1732), solid: false);
     }
 
     final beams = <List<double>>[
@@ -1157,148 +1304,133 @@ class TrollEngine {
       [9100, 180, 320], [10180, 170, 300],
     ];
     for (var i = 0; i < beams.length; i++) {
-      block(
-        'plus_beam_$i',
-        beams[i][0],
-        beams[i][1],
-        beams[i][2],
-        22,
-        color: const Color(0xFF182A4A),
-      );
+      block('plus_beam_$i', beams[i][0], beams[i][1], beams[i][2], 22,
+          color: const Color(0xFF182A4A), solid: false);
     }
 
-    // 01/12 — First void: moving platform. The jump is possible without it,
-    // but the platform gives a safer timing route across the 140-unit gap.
-    block('moving_platform_plus_1', 820, 430, 145, 24,
+    // 01 — Moving platform + first double-jump gap.
+    block('moving_platform_plus_1', 820, 430, 150, 24,
         color: const Color(0xFF1B4168));
-    traps.add(TestMovingPlatformTrap(
-      'moving_platform_plus_1', 810, 955, 190,
-    ));
+    traps.add(TestMovingPlatformTrap('moving_platform_plus_1', 810, 970, 190));
 
-    // 02/12 — Short spike rhythm. No pit immediately after it; the raised
-    // ledge gives a second route for a player who reads the pattern quickly.
-    spike('spike_plus_1', 1210, 516, 70, 24);
-    spike('spike_plus_2', 1330, 516, 70, 24);
+    // 02 — Short spike rhythm with an upper recovery route.
+    spike('spike_plus_1', 1190, 516, 65, 24);
+    spike('spike_plus_2', 1300, 516, 65, 24);
     block('plus_recovery_1', 1450, 430, 250, 24,
         color: const Color(0xFF1B355D));
 
-    // 03/12 — Patrol saw. It moves across a clear floor section, leaving a
-    // predictable opening rather than blocking the whole passage.
-    spike('saw_plus_1', 1510, 455, 58, 58);
-    traps.add(TestPatrolHazardTrap('saw_plus_1', 1490, 1740, 210));
+    // 03 — Hammer enemy: read its patrol, jump over it or shoot it.
+    enemy('enemy_hammer_1', 'hammer', 1510, 494,
+        left: 1450, right: 1710, speed: 62, health: 2);
 
-    // 04/12 — Appearing spikes. The warning zone is long enough to react and
-    // the elevated ledge at 1450-1700 is a deliberate recovery option.
+    // 04 — Appearing spikes + chest. Chest can be opened from range.
     for (int i = 0; i < 2; i++) {
       final id = 'aspike_plus_$i';
-      spike(id, 1670 + i * 70, 516, 54, 24);
+      spike(id, 1770 + i * 70, 516, 54, 24);
       entities.last.isVisible = false;
     }
     traps.add(AppearingSpikesTrap(
-      RectD(1580, 455, 360, 110),
+      RectD(1690, 455, 320, 110),
       ['aspike_plus_0', 'aspike_plus_1'],
     ));
+    chest('chest_plus_1', 1870, 470, 'gold', 10);
 
-    // 05/12 — Falling platforms. Only the central floor tiles fall; the
-    // elevated ledge above remains a valid recovery route.
+    // 05 — Falling-floor chamber. Double-jump is the intended escape.
     for (int i = 0; i < 4; i++) {
-      block('fall_plus_$i', 2080 + i * 45, 540, 45, 60);
+      block('fall_plus_$i', 2040 + i * 50, 540, 50, 60);
     }
     traps.add(FallingPlatformTrap(
-      RectD(2010, 495, 310, 120),
+      RectD(1990, 495, 340, 120),
       List.generate(4, (i) => 'fall_plus_$i'),
     ));
+    enemy('enemy_wood_1', 'wood', 2320, 494,
+        left: 2260, right: 2500, speed: 55);
 
-    // 06/12 — Crusher. A wide trigger gives the player time to see the
-    // mechanism; the nearby ledge creates a smart dodge instead of a coinflip.
-    block('crusher_plus_1', 3010, 180, 190, 55,
+    // 06 — Crusher plus a crouch passage underneath its safe timing window.
+    block('crusher_plus_1', 3020, 180, 190, 55,
         color: const Color(0xFF273A5C));
     traps.add(ThwompCeilingTrap(
-      RectD(2920, 300, 470, 240),
+      RectD(2930, 300, 470, 240),
       ['crusher_plus_1'],
       250,
     ));
+    chest('chest_plus_2', 3250, 355, 'gems', 2);
 
-    // 07/12 — Timed bridge across the next void. Two stepping stones are
-    // controlled together; the timing is demanding but readable.
-    block('timed_plus_1', 3780, 460, 115, 24,
+    // 07 — Timed stepping stones, then sword enemy.
+    block('timed_plus_1', 3800, 460, 115, 24,
         color: const Color(0xFF19506A));
-    block('timed_plus_2', 3895, 400, 125, 24,
+    block('timed_plus_2', 3915, 400, 125, 24,
         color: const Color(0xFF19506A));
     traps.add(TimedPlatformTrap(
       ['timed_plus_1', 'timed_plus_2'],
       showDuration: 2.7,
       hideDuration: 2.3,
     ));
+    enemy('enemy_sword_1', 'sword', 4120, 494,
+        left: 4020, right: 4320, speed: 78, health: 2);
 
-    // 08/12 — Fake solid. This is a mind-game, not an instant-death wall:
-    // a lower floor remains underneath if the player tests the block.
+    // 08 — Fake solid mind-game. The lower floor remains available.
     block('fake_plus_1', 5220, 430, 220, 28,
         color: const Color(0xFF28375D));
-    traps.add(FakeSolidTrap(
-      RectD(5150, 385, 360, 125),
-      ['fake_plus_1'],
-    ));
+    traps.add(FakeSolidTrap(RectD(5150, 385, 360, 125), ['fake_plus_1']));
+    chest('chest_plus_3', 5400, 355, 'heart', 1);
 
-    // 09/12 — Reverse controls. Long runway before and after the gate gives
-    // enough space to consciously adapt rather than forcing an immediate trap.
+    // 09 — Knife enemy in a long readable runway.
+    enemy('enemy_knife_1', 'knife', 5650, 494,
+        left: 5480, right: 5850, speed: 92, health: 1);
+
+    // 10 — Reverse controls, followed by a wide runway.
     block('reverse_plus_gate', 6250, 410, 24, 130,
-        color: const Color(0xFF7A36B5));
-    traps.add(ReverseControlsTrap(
-      RectD(6140, 405, 300, 145),
-    ));
+        color: const Color(0xFF7A36B5), solid: false);
+    traps.add(ReverseControlsTrap(RectD(6140, 405, 300, 145)));
 
-    // 10/12 — Gravity chamber. The player can choose the ceiling ledges and
-    // then return to normal gravity in a wide exit area.
+    // 11 — Gravity chamber with ceiling route.
     block('gravity_plus_ceiling', 7160, 60, 380, 30,
         color: const Color(0xFF253A66));
     block('gravity_plus_ledge', 7310, 170, 230, 24,
         color: const Color(0xFF1D3560));
-    traps.add(GravityFlipZoneTrap(
-      RectD(7040, 100, 620, 430),
-    ));
+    traps.add(GravityFlipZoneTrap(RectD(7040, 100, 620, 430)));
+    enemy('enemy_hammer_2', 'hammer', 7550, 254,
+        left: 7350, right: 7850, speed: 66, health: 2);
 
-    // 11/12 — Running door. It starts after a clear acceleration lane and
-    // leaves enough distance to react; the player is rewarded for speed.
+    // 12 — Running door + final laser corridor.
     block('plus_run_door', 8260, 420, 60, 100,
-        color: const Color(0xFF8A3DFF));
+        color: const Color(0xFF8A3DFF), solid: false);
     traps.add(RunningDoorTrap(
-      RectD(8000, 390, 430, 170),
-      'plus_run_door',
-      360,
+      RectD(8000, 390, 430, 170), 'plus_run_door', 360,
     ));
-
-    // 12/12 — Pulse laser followed by a short final precision section.
+    enemy('enemy_wood_2', 'wood', 8650, 494,
+        left: 8440, right: 8900, speed: 60);
     spike('laser_plus_1', 9300, 250, 24, 260,
         color: const Color(0xFFFF3355));
     traps.add(TestPulseLaserTrap(
-      'laser_plus_1',
-      activeTime: 1.05,
-      inactiveTime: 1.35,
+      'laser_plus_1', activeTime: 1.05, inactiveTime: 1.35,
     ));
 
-    // Final approach: no trap directly touches the finish door.
-    spike('final_spike_plus_1', 9750, 516, 70, 24);
-    spike('final_spike_plus_2', 9860, 516, 70, 24);
-    block('final_recovery_plus', 10020, 420, 250, 24,
+    // Final precision: two short spike groups, recovery platform, then blade gate.
+    spike('final_spike_plus_1', 9740, 516, 70, 24);
+    spike('final_spike_plus_2', 9850, 516, 70, 24);
+    block('final_recovery_plus', 10010, 420, 250, 24,
         color: const Color(0xFF213C68));
+    enemy('enemy_sword_2', 'sword', 10100, 494,
+        left: 9970, right: 10240, speed: 82, health: 2);
 
     entities.add(TrollEntity(
       id: 'plus_aggressive_door',
       type: TrollEntityType.door,
-      rect: RectD(10280, 420, 60, 90),
+      rect: RectD(10330, 420, 60, 90),
       color: const Color(0xFFFFD34D),
       isSolid: false,
     ));
     traps.add(AggressiveDoorTrap('plus_aggressive_door'));
 
-    block('plus_final_approach', 10380, 500, 270, 100,
+    block('plus_final_approach', 10430, 500, 370, 100,
         color: const Color(0xFF17264A));
 
     entities.add(TrollEntity(
       id: 'door',
       type: TrollEntityType.door,
-      rect: RectD(10520, 390, 70, 110),
+      rect: RectD(10710, 390, 70, 110),
       color: const Color(0xFFFFD34D),
       isSolid: false,
     ));
@@ -2616,6 +2748,11 @@ class TrollEngine {
       cameraX += (targetCameraX - cameraX) * 5 * dt; // Smooth follow
     }
 
+    if (seasonPlusCombatEnabled) {
+      hitInvulnerability = max(0, hitInvulnerability - dt);
+      shootCooldown = max(0, shootCooldown - dt);
+    }
+
     // Particles
     for (int i = particles.length - 1; i >= 0; i--) {
       var p = particles[i];
@@ -2672,7 +2809,7 @@ class TrollEngine {
     }
 
     if (jumping) {
-      jumpBufferTimer = 0.15; // Queue jump
+      jumpBufferTimer = 0.15;
       jumping = false;
     } else {
       jumpBufferTimer -= dt;
@@ -2680,26 +2817,34 @@ class TrollEngine {
 
     if (_isGrounded) {
       coyoteTimer = 0.15;
-      hasDashed = false; // Reset dash on ground
+      jumpCount = 0;
+      hasDashed = false;
     } else {
       coyoteTimer -= dt;
     }
-    
-    if (isFlappyLevel) {
-       // Infinite mid-air jumps
-       coyoteTimer = 1.0; 
-    }
 
-    if (jumpBufferTimer > 0 && coyoteTimer > 0) {
-      player.vy = isGravityInverted ? -currentJumpForce : currentJumpForce;
-      coyoteTimer = 0;
-      jumpBufferTimer = 0;
-    } else if (isDashLevel && jumpBufferTimer > 0 && coyoteTimer <= 0 && !hasDashed) {
-      // Air Dash mechanic
-      hasDashed = true;
-      player.vx = playerFaceDir * 1500.0; 
-      player.vy = 0;
-      jumpBufferTimer = 0;
+    if (jumpBufferTimer > 0) {
+      if (coyoteTimer > 0) {
+        player.vy = isGravityInverted ? -currentJumpForce : currentJumpForce;
+        coyoteTimer = 0;
+        jumpBufferTimer = 0;
+        jumpCount = 1;
+      } else if (seasonPlusCombatEnabled && jumpCount < 2) {
+        player.vy = isGravityInverted ? -currentJumpForce : currentJumpForce;
+        jumpBufferTimer = 0;
+        jumpCount = 2;
+        _spawnParticles(
+          player.rect.x + player.rect.w / 2,
+          player.rect.bottom,
+          8,
+          const Color(0xFF9B4DFF),
+        );
+      } else if (isDashLevel && jumpBufferTimer > 0 && coyoteTimer <= 0 && !hasDashed) {
+        hasDashed = true;
+        player.vx = playerFaceDir * 1500.0;
+        player.vy = 0;
+        jumpBufferTimer = 0;
+      }
     }
 
     // INVERTED CONTROLS LOGIC
@@ -2757,6 +2902,81 @@ class TrollEngine {
            }
          }
        }
+    }
+
+    // Season+ projectiles and enemies.
+    if (seasonPlusCombatEnabled) {
+      final projectiles = entities.where((e) => e.type == TrollEntityType.projectile).toList();
+      for (final projectile in projectiles) {
+        projectile.rect.x += projectile.vx * dt;
+        projectile.rect.y += projectile.vy * dt;
+        projectile.vy += 260 * dt;
+
+        bool removeProjectile = projectile.rect.x < cameraX - 120 ||
+            projectile.rect.x > cameraX + logicalWidth + 120;
+
+        if (!removeProjectile) {
+          for (final e in entities) {
+            if (!e.isVisible || e == projectile) continue;
+            if (e.type == TrollEntityType.enemy &&
+                projectile.rect.intersects(e.rect)) {
+              e.health--;
+              removeProjectile = true;
+              _spawnParticles(
+                e.rect.x + e.rect.w / 2,
+                e.rect.y + e.rect.h / 2,
+                12,
+                const Color(0xFFFF8A32),
+              );
+              if (e.health <= 0) {
+                e.isVisible = false;
+                _spawnParticles(
+                  e.rect.x + e.rect.w / 2,
+                  e.rect.y + e.rect.h / 2,
+                  22,
+                  const Color(0xFFFF5577),
+                );
+              }
+              break;
+            }
+            if (e.type == TrollEntityType.chest &&
+                projectile.rect.intersects(e.rect)) {
+              _breakChest(e);
+              removeProjectile = true;
+              break;
+            }
+            if (e.type == TrollEntityType.block &&
+                e.isSolid &&
+                projectile.rect.intersects(e.rect)) {
+              removeProjectile = true;
+              break;
+            }
+          }
+        }
+        if (removeProjectile) entities.remove(projectile);
+      }
+
+      for (final e in entities.where((e) => e.type == TrollEntityType.enemy && e.isVisible)) {
+        e.attackCooldown = max(0, e.attackCooldown - dt);
+        final dirToPlayer = (player.rect.centerX - e.rect.centerX).sign;
+        final nearPlayer = (player.rect.x - e.rect.x).abs() < 240 &&
+            (player.rect.y - e.rect.y).abs() < 120;
+
+        if (nearPlayer && e.attackCooldown <= 0) {
+          e.vx = dirToPlayer == 0 ? e.aiSpeed : dirToPlayer * (e.aiSpeed + 35);
+          e.attackCooldown = 0.9;
+        } else {
+          e.vx = e.aiSpeed;
+          if (e.rect.x >= e.aiRight) e.vx = -e.aiSpeed;
+          if (e.rect.x <= e.aiLeft) e.vx = e.aiSpeed;
+        }
+        e.rect.x += e.vx * dt;
+
+        if (e.rect.intersects(player.rect)) {
+          _damagePlayer();
+          e.rect.x += dirToPlayer * -22;
+        }
+      }
     }
 
     // Move X
@@ -2841,23 +3061,37 @@ class TrollEngine {
       }
     }
 
-    // Hitboxes (shrink player hitbox slightly to prevent unfair deaths)
-    RectD shrinkHitbox = RectD(player.rect.x + 8, player.rect.y + 10, player.rect.w - 16, player.rect.h - 15);
-    
-    for (var e in entities) {
-      if (e.type == TrollEntityType.spike && e.isVisible) {
+    // Hitboxes. Season+ hazards use the two-hit heart system.
+    RectD shrinkHitbox = RectD(
+      player.rect.x + 8,
+      player.rect.y + 10,
+      player.rect.w - 16,
+      max(8, player.rect.h - 15),
+    );
+
+    for (final e in entities) {
+      if (!e.isVisible) continue;
+      if (e.type == TrollEntityType.spike) {
         if (shrinkHitbox.intersects(e.rect)) {
-          killPlayer();
+          if (seasonPlusCombatEnabled) {
+            _damagePlayer();
+          } else {
+            killPlayer();
+          }
         }
       } else if (e.type == TrollEntityType.door) {
         if (player.rect.intersects(e.rect)) {
           roundWon = true;
-          playerScale = 0.0; // disappear into door
-          _spawnParticles(e.rect.x + 20, e.rect.y + 30, 20, const Color(0xFFFFD700));
+          playerScale = 0.0;
+          _spawnParticles(
+            e.rect.x + 20,
+            e.rect.y + 30,
+            20,
+            const Color(0xFFFFD700),
+          );
         }
       }
     }
-  }
 
   void _resolveCollisions(bool isAxisX) {
     for (var e in entities) {
