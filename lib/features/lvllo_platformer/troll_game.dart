@@ -122,11 +122,11 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       _engine.rewardEvents.clear();
       for (final event in events) {
         if (event.type == 'gold') {
-          await EconomyManager.addGold(event.amount);
+          EconomyManager.addGold(event.amount);
           _gold += event.amount;
           _rewardToast = '+${event.amount} GOLD';
         } else if (event.type == 'gems') {
-          await EconomyManager.addGems(event.amount);
+          EconomyManager.addGems(event.amount);
           _gems += event.amount;
           _rewardToast = '+${event.amount} GEMS';
         } else if (event.type == 'heart') {
@@ -340,6 +340,10 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   child: Row(
                     children: [
                       const _LifeHud(),
+                      if (widget.seasonPlusStage) ...[
+                        const SizedBox(width: 6),
+                        _hitHud(),
+                      ],
                       if (widget.seasonPlusStage) ...[
                         const SizedBox(width: 6),
                         _currencyHud(Icons.monetization_on_rounded, _gold, const Color(0xFFFFD54A)),
@@ -734,6 +738,23 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
           height: 44,
           child: Icon(icon, color: Colors.white, size: 22),
         ),
+      ),
+    );
+  }
+
+  Widget _hitHud() {
+    final hits = _engine.currentHeartHits.clamp(0, 2);
+    final bonus = _engine.bonusHitPoints;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xD90A1124),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x66FF5478)),
+      ),
+      child: Text(
+        bonus > 0 ? '♥ $hits/2 +$bonus' : '♥ $hits/2',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10),
       ),
     );
   }
