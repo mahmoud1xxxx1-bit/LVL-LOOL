@@ -824,6 +824,7 @@ class TrollEngine {
     this.mechanicOffset = 0,
     this.stageSeedOverride,
     this.testStageMode = false,
+    this.seasonPlusStageMode = false,
   }) {
     stageSeed = _seedForRound(round);
     rng = Random(stageSeed); // generation RNG only
@@ -843,6 +844,7 @@ class TrollEngine {
   /// still produce distinct deterministic layouts from their original stages.
   final int? stageSeedOverride;
   final bool testStageMode;
+  final bool seasonPlusStageMode;
 
   // Test World visual/gameplay state. This is isolated from the existing 175 stages.
   double testWaterY = 610.0;
@@ -1048,6 +1050,142 @@ class TrollEngine {
     }
   }
 
+  void _loadSeasonPlusStage01() {
+    entities.clear();
+    traps.clear();
+    particles.clear();
+    maxMapWidth = 10600;
+    cameraX = 0;
+    roundWon = false;
+    completedAsWin = false;
+    isDead = false;
+
+    void block(String id, double x, double y, double w, double h,
+        {Color color = const Color(0xFF111A35)}) {
+      entities.add(TrollEntity(
+        id: id, type: TrollEntityType.block,
+        rect: RectD(x, y, w, h), color: color, isSolid: true,
+      ));
+    }
+
+    void spike(String id, double x, double y, double w, double h,
+        {bool inverted = false, Color color = const Color(0xFFFF3DAF)}) {
+      entities.add(TrollEntity(
+        id: id, type: TrollEntityType.spike,
+        rect: RectD(x, y, w, h), color: color,
+        isSolid: false, isInverted: inverted,
+      ));
+    }
+
+    // 10 architectural chambers. Total route length: 10,600+ units.
+    final floors = <List<double>>[
+      [0, 900], [1050, 1900], [2100, 3000], [3200, 4100],
+      [4300, 5200], [5400, 6300], [6500, 7400], [7600, 8500],
+      [8700, 9600], [9800, 10600],
+    ];
+    for (var i = 0; i < floors.length; i++) {
+      block('plus_floor_$i', floors[i][0], 540, floors[i][1] - floors[i][0], 60,
+          color: i.isEven ? const Color(0xFF111A35) : const Color(0xFF142044));
+    }
+
+    // Elevated ruins and alternate routes.
+    final ledges = <List<double>>[
+      [520, 410, 210], [1180, 360, 230], [2260, 330, 220],
+      [3500, 280, 240], [4520, 350, 230], [5660, 300, 250],
+      [6880, 340, 220], [8040, 290, 250], [9140, 350, 240],
+      [10120, 300, 240],
+    ];
+    for (var i = 0; i < ledges.length; i++) {
+      block('plus_ledge_$i', ledges[i][0], ledges[i][1], ledges[i][2], 28,
+          color: const Color(0xFF172747));
+    }
+
+    // 01/12: Moving platform across the first void.
+    block('plus_moving_1', 875, 420, 150, 24, color: const Color(0xFF1B4168));
+    traps.add(TestMovingPlatformTrap('plus_moving_1', 850, 1020, 190));
+
+    // 02/12: Patrol saw in the industrial chamber.
+    spike('plus_saw_1', 1280, 480, 58, 58);
+    traps.add(TestPatrolHazardTrap('plus_saw_1', 1190, 1500, 220));
+
+    // 03/12: Appearing spikes, reusing the old Season mechanics.
+    for (int i = 0; i < 3; i++) {
+      final id = 'plus_aspike_$i';
+      spike(id, 1710 + i * 60, 516, 54, 24);
+      entities.last.isVisible = false;
+    }
+    traps.add(AppearingSpikesTrap(
+      RectD(1600, 450, 360, 120),
+      ['plus_aspike_0', 'plus_aspike_1', 'plus_aspike_2'],
+    ));
+
+    // 04/12: Falling floor section.
+    for (int i = 0; i < 5; i++) {
+      block('plus_fall_$i', 2360 + i * 40, 540, 40, 60);
+    }
+    traps.add(FallingPlatformTrap(
+      RectD(2260, 500, 380, 120),
+      List.generate(5, (i) => 'plus_fall_$i'),
+    ));
+
+    // 05/12: Ceiling crusher in the central tower.
+    block('plus_crusher_1', 3320, 180, 180, 55, color: const Color(0xFF273A5C));
+    traps.add(ThwompCeilingTrap(
+      RectD(3180, 300, 480, 240),
+      ['plus_crusher_1'],
+      250,
+    ));
+
+    // 06/12: Timed bridge.
+    block('plus_timed_1', 4250, 450, 130, 24, color: const Color(0xFF19506A));
+    block('plus_timed_2', 4410, 390, 130, 24, color: const Color(0xFF19506A));
+    traps.add(TimedPlatformTrap(['plus_timed_1'], showDuration: 2.8, hideDuration: 2.4));
+
+    // 07/12: Fake solid shortcut.
+    block('plus_fake_1', 5550, 430, 220, 28, color: const Color(0xFF28375D));
+    traps.add(FakeSolidTrap(RectD(5480, 380, 360, 130), ['plus_fake_1']));
+
+    // 08/12: Reverse controls.
+    block('plus_reverse_gate', 6420, 420, 24, 120, color: const Color(0xFF7A36B5));
+    traps.add(ReverseControlsTrap(RectD(6320, 420, 240, 150)));
+
+    // 09/12: Gravity flip chamber.
+    block('plus_gravity_ceiling', 7080, 40, 360, 36, color: const Color(0xFF253A66));
+    traps.add(GravityFlipZoneTrap(RectD(6960, 100, 600, 430)));
+
+    // 10/12: Running door chase.
+    block('plus_run_door', 8220, 420, 60, 100, color: const Color(0xFF8A3DFF));
+    traps.add(RunningDoorTrap(
+      RectD(8000, 400, 420, 160), 'plus_run_door', 430,
+    ));
+
+    // 11/12: Pulse laser gate.
+    spike('plus_laser_1', 9020, 210, 24, 300, color: const Color(0xFFFF3355));
+    traps.add(TestPulseLaserTrap('plus_laser_1', activeTime: 1.1, inactiveTime: 1.3));
+
+    // 12/12: Aggressive door troll near the final approach.
+    entities.add(TrollEntity(
+      id: 'plus_aggressive_door', type: TrollEntityType.door,
+      rect: RectD(10000, 430, 60, 90),
+      color: const Color(0xFFFFD34D), isSolid: false,
+    ));
+    traps.add(AggressiveDoorTrap('plus_aggressive_door'));
+
+    block('plus_final_approach', 10200, 500, 400, 100, color: const Color(0xFF17264A));
+    entities.add(TrollEntity(
+      id: 'door', type: TrollEntityType.door,
+      rect: RectD(10480, 410, 70, 110),
+      color: const Color(0xFFFFD34D), isSolid: false,
+    ));
+
+    player = TrollEntity(
+      id: 'player', type: TrollEntityType.player,
+      rect: RectD(90, 500, 30, 40),
+      color: const Color(0xFFB98CFF), isSolid: false,
+    );
+    entities.add(player);
+  }
+
   void _loadTestStage() {
     entities.clear();
     traps.clear();
@@ -1174,7 +1312,7 @@ class TrollEngine {
     traps.clear();
     particles.clear();
     isDead = false;
-    if (testStageMode) {
+    if (testStageMode || seasonPlusStageMode) {
       movingLeft = false;
       movingRight = false;
       jumping = false;
@@ -1183,10 +1321,13 @@ class TrollEngine {
       coyoteTimer = 0;
       jumpBufferTimer = 0;
       cameraX = 0;
+      invertedControls = false;
       isGravityInverted = false;
       isSpotlightLevel = false;
+      isWrapLevel = false;
       isTimeFreezeLevel = false;
       isLavaLevel = false;
+      lavaY = 800;
       isLowGravityLevel = false;
       isFlappyLevel = false;
       isTinyLevel = false;
@@ -1202,7 +1343,11 @@ class TrollEngine {
       isChasedLevel = false;
       ghostHistory.clear();
       chaseWallX = -200;
-      _loadTestStage();
+      if (seasonPlusStageMode) {
+        _loadSeasonPlusStage01();
+      } else {
+        _loadTestStage();
+      }
       return;
     }
     roundWon = false;
