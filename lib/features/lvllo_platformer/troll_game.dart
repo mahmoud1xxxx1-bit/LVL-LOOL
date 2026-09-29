@@ -516,7 +516,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
         children: [
           const Icon(Icons.emoji_events_rounded, color: Color(0xFF5CF5FF), size: 58),
           const SizedBox(height: 10),
-          Text(widget.seasonPlusStage ? 'SEASON + STAGE COMPLETE' : (widget.testStage ? 'TEST STAGE COMPLETE' : 'STAGE COMPLETE', style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          Text(widget.seasonPlusStage ? 'SEASON + STAGE COMPLETE' : (widget.testStage ? 'TEST STAGE COMPLETE' : 'STAGE COMPLETE'), style: const TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           const SizedBox(height: 5),
           Text(displayStage, style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 18),
