@@ -2157,27 +2157,80 @@ class _TrollPainter extends CustomPainter {
   }
 
   void _drawRewardChest(Canvas canvas, TrollEntity e) {
-    final r = RRect.fromRectAndRadius(e.rect.toRect(), const Radius.circular(7));
-    final glow = Paint()
-      ..color = const Color(0xFFFFD54A).withOpacity(.18)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    canvas.drawRRect(r.inflate(3), glow);
-    final body = Paint()..color = const Color(0xFF7A4725);
-    canvas.drawRRect(r, body);
+    final r = RRect.fromRectAndRadius(
+      e.rect.toRect(),
+      const Radius.circular(6),
+    );
+
+    // Approved Season+ reward box: warm wood, gold bands, bright lock and
+    // a small reward marker so the player immediately knows it is breakable.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(e.rect.toRect().inflate(5), const Radius.circular(8)),
+      Paint()
+        ..color = const Color(0xFFFFB52E).withOpacity(.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+
+    canvas.drawRRect(r, Paint()..color = const Color(0xFF6B3B22));
     canvas.drawRect(
       Rect.fromLTWH(e.rect.x, e.rect.y + 13, e.rect.w, 6),
-      Paint()..color = const Color(0xFFD89B3D),
+      Paint()..color = const Color(0xFFD9952E),
     );
     canvas.drawRect(
-      Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 3, e.rect.y + 11, 6, 10),
-      Paint()..color = const Color(0xFFFFD54A),
+      Rect.fromLTWH(e.rect.x + 3, e.rect.y + 4, 4, e.rect.h - 8),
+      Paint()..color = const Color(0xFF9C5A2B),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(e.rect.right - 7, e.rect.y + 4, 4, e.rect.h - 8),
+      Paint()..color = const Color(0xFF9C5A2B),
+    );
+
+    // Crossed planks give the chest the same illustrated silhouette as the
+    // approved reference instead of looking like a generic rectangle.
+    final plank = Paint()
+      ..color = const Color(0xFFE2A451)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(e.rect.x + 8, e.rect.y + 8),
+      Offset(e.rect.right - 8, e.rect.bottom - 8),
+      plank,
     );
     canvas.drawLine(
-      Offset(e.rect.x + 7, e.rect.y + 6),
-      Offset(e.rect.right - 7, e.rect.y + 6),
+      Offset(e.rect.right - 8, e.rect.y + 8),
+      Offset(e.rect.x + 8, e.rect.bottom - 8),
+      plank,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 5, e.rect.y + 11, 10, 12),
+        const Radius.circular(2),
+      ),
+      Paint()..color = const Color(0xFFFFD54A),
+    );
+    canvas.drawCircle(
+      Offset(e.rect.x + e.rect.w / 2, e.rect.y + 17),
+      2,
+      Paint()..color = const Color(0xFF7A4B00),
+    );
+
+    final markerColor = e.rewardKind == 'gems'
+        ? const Color(0xFF39E7FF)
+        : e.rewardKind == 'heart'
+            ? const Color(0xFFFF4F83)
+            : const Color(0xFFFFC83D);
+    canvas.drawCircle(
+      Offset(e.rect.centerX, e.rect.y - 6),
+      7,
       Paint()
-        ..color = const Color(0xFFFFD54A).withOpacity(.8)
-        ..strokeWidth = 2,
+        ..color = markerColor.withOpacity(.20)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    canvas.drawCircle(
+      Offset(e.rect.centerX, e.rect.y - 6),
+      4,
+      Paint()..color = markerColor,
     );
   }
 
