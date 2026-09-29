@@ -529,12 +529,12 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               decoration: BoxDecoration(color: const Color(0xFF071225), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x335CF5FF))),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.science_rounded, color: Color(0xFF5CF5FF), size: 30),
-                  SizedBox(width: 10),
-                  Text(widget.seasonPlusStage ? 'SEASON + PROTOTYPE CLEARED' : 'PROTOTYPE CLEARED', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
+                  const Icon(Icons.science_rounded, color: Color(0xFF5CF5FF), size: 30),
+                  const SizedBox(width: 10),
+                  Text(widget.seasonPlusStage ? 'SEASON + PROTOTYPE CLEARED' : 'PROTOTYPE CLEARED', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
                 ],
               ),
             )
