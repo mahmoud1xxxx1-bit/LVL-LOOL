@@ -92,19 +92,16 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
 
   Future<void> _syncOwnerTestMode() async {
     final enabled = await EconomyManager.isOwnerTestModeEnabled();
+    final economy = await EconomyManager.checkEconomy();
     if (!mounted) return;
     _ownerTestMode = enabled;
     TrollEngine.godMode = enabled;
-    if (enabled) {
-      final economy = await EconomyManager.checkEconomy();
-      if (!mounted) return;
-      setState(() {
-        _livesRemaining = economy['lives'] as int? ?? 999;
-        _maxLives = economy['maxLives'] as int? ?? 999;
-        _gold = economy['gold'] as int? ?? 0;
-        _gems = economy['gems'] as int? ?? 0;
-      });
-    }
+    setState(() {
+      _livesRemaining = economy['lives'] as int? ?? (enabled ? 999 : 10);
+      _maxLives = economy['maxLives'] as int? ?? (enabled ? 999 : 10);
+      _gold = economy['gold'] as int? ?? 0;
+      _gems = economy['gems'] as int? ?? 0;
+    });
   }
 
   void _onTick(Duration elapsed) {
