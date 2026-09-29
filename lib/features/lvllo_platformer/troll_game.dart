@@ -1840,436 +1840,823 @@ class _TrollPainter extends CustomPainter {
     );
   }
 
+
+  // ---------------------------------------------------------------------------
+  // Season+ production character art
+  //
+  // This is intentionally hand-authored, layered character art rather than
+  // generic rectangles.  Hitboxes stay in the engine; this layer is purely
+  // visual, so art can be larger than the collision box without changing play.
+  // ---------------------------------------------------------------------------
+
+  Paint _spPaint(Color color, {double opacity = 1.0}) =>
+      Paint()..color = color.withOpacity(opacity);
+
+  void _spStroke(Canvas canvas, Path path, Color color, double width) {
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, p);
+  }
+
   void _drawSeasonPlusEnemy(Canvas canvas, TrollEntity e) {
     final kind = e.enemyKind ?? 'sword';
     final dir = (engine.player.rect.centerX - e.rect.centerX).sign == 0
         ? 1.0
         : (engine.player.rect.centerX - e.rect.centerX).sign;
-    final x = e.rect.x;
-    final y = e.rect.y;
-    final w = e.rect.w;
-    final h = e.rect.h;
+    final moving = e.vx.abs() > 3;
+    final bob = moving ? sin(e.phase * 8.0) * 1.2 : sin(e.phase * 3.0) * .5;
 
     canvas.save();
-    canvas.translate(x, y);
+    canvas.translate(e.rect.centerX, e.rect.bottom);
+    canvas.scale(dir, 1);
+    canvas.translate(0, bob);
 
-    // Ground shadow + restrained neon rim: keeps the approved character
-    // silhouettes readable without making them look like square UI icons.
-    canvas.drawOval(
-      Rect.fromLTWH(4, h - 5, w - 8, 7),
-      Paint()
-        ..color = const Color(0x66000000)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-
-    Color body;
-    Color dark;
-    Color accent;
-    switch (kind) {
-      case 'hammer':
-        body = const Color(0xFFE52D4D);
-        dark = const Color(0xFF4B1225);
-        accent = const Color(0xFF7E1D37);
-        break;
-      case 'wood':
-        body = const Color(0xFFC87532);
-        dark = const Color(0xFF4A2818);
-        accent = const Color(0xFFE3A15A);
-        break;
-      case 'knife':
-        body = const Color(0xFF4FAF58);
-        dark = const Color(0xFF123A28);
-        accent = const Color(0xFF8FE36B);
-        break;
-      case 'fire':
-        body = const Color(0xFF7136B8);
-        dark = const Color(0xFF24123F);
-        accent = const Color(0xFFFF7A2A);
-        break;
-      case 'bat':
-        body = const Color(0xFF6E35C9);
-        dark = const Color(0xFF25104C);
-        accent = const Color(0xFFB36BFF);
-        break;
-      case 'spiked':
-        body = const Color(0xFF6F4A8E);
-        dark = const Color(0xFF24182F);
-        accent = const Color(0xFFD2A6FF);
-        break;
-      case 'archer':
-        body = const Color(0xFF7439A7);
-        dark = const Color(0xFF21102F);
-        accent = const Color(0xFFE2A7FF);
-        break;
-      default:
-        body = const Color(0xFF7136B8);
-        dark = const Color(0xFF24123F);
-        accent = const Color(0xFFB98CFF);
-    }
+    // Contact shadow.
+    final shadow = Paint()
+      ..color = const Color(0x66000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawOval(const Rect.fromLTWH(-25, -4, 50, 9), shadow);
 
     if (kind == 'bat') {
-      final wing = Paint()..color = body;
-      final leftWing = Path()
-        ..moveTo(20, 18)
-        ..lineTo(2, 8)
-        ..lineTo(7, 27)
-        ..lineTo(14, 22)
-        ..close();
-      final rightWing = Path()
-        ..moveTo(22, 18)
-        ..lineTo(40, 8)
-        ..lineTo(35, 27)
-        ..lineTo(28, 22)
-        ..close();
-      canvas.drawPath(leftWing, wing);
-      canvas.drawPath(rightWing, wing);
-      canvas.drawCircle(const Offset(21, 22), 12, Paint()..color = dark);
-      canvas.drawCircle(const Offset(17, 20), 2.4, Paint()..color = const Color(0xFFFF5577));
-      canvas.drawCircle(const Offset(25, 20), 2.4, Paint()..color = const Color(0xFFFF5577));
-      final teeth = Paint()..color = Colors.white;
-      canvas.drawPath(Path()..moveTo(16, 28)..lineTo(19, 28)..lineTo(17.5, 33)..close(), teeth);
-      canvas.drawPath(Path()..moveTo(23, 28)..lineTo(26, 28)..lineTo(24.5, 33)..close(), teeth);
+      _drawSpBat(canvas);
     } else if (kind == 'spiked') {
-      final shell = RRect.fromRectAndRadius(
-        Rect.fromLTWH(5, 17, 32, 21),
-        const Radius.circular(9),
-      );
-      canvas.drawRRect(shell, Paint()..color = dark);
-      canvas.drawRRect(shell.deflate(3), Paint()..color = body);
-      for (int i = 0; i < 5; i++) {
-        final px = 8.0 + i * 7.0;
-        final p = Path()
-          ..moveTo(px, 18)
-          ..lineTo(px + 3.5, 7)
-          ..lineTo(px + 7, 18)
-          ..close();
-        canvas.drawPath(p, Paint()..color = accent);
-      }
-      canvas.drawCircle(const Offset(12, 27), 3, Paint()..color = const Color(0xFFFFE8FF));
-      canvas.drawCircle(const Offset(31, 27), 3, Paint()..color = const Color(0xFFFFE8FF));
-      canvas.drawCircle(const Offset(12, 27), 1.3, Paint()..color = dark);
-      canvas.drawCircle(const Offset(31, 27), 1.3, Paint()..color = dark);
+      _drawSpSpikedWalker(canvas);
     } else {
-      // Legs and boots.
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(10, 33, 8, 11), const Radius.circular(3)),
-        Paint()..color = dark,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(25, 33, 8, 11), const Radius.circular(3)),
-        Paint()..color = dark,
-      );
-      canvas.drawOval(Rect.fromLTWH(7, 41, 13, 5), Paint()..color = const Color(0xFF090B15));
-      canvas.drawOval(Rect.fromLTWH(23, 41, 13, 5), Paint()..color = const Color(0xFF090B15));
-
-      // Body armor/tunic.
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(8, 18, 27, 19), const Radius.circular(6)),
-        Paint()..color = dark,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(11, 19, 21, 16), const Radius.circular(5)),
-        Paint()..color = body,
-      );
-      canvas.drawRect(Rect.fromLTWH(12, 31, 19, 3), Paint()..color = accent);
-
-      // Head / hood / helmet.
-      final head = RRect.fromRectAndRadius(
-        Rect.fromLTWH(9, 3, 25, 20),
-        const Radius.circular(8),
-      );
-      canvas.drawRRect(head, Paint()..color = dark);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(11, 5, 21, 15), const Radius.circular(6)),
-        Paint()..color = body,
-      );
-
-      // Face visor. Eyes look toward the player.
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(13, 10, 17, 7), const Radius.circular(3)),
-        Paint()..color = const Color(0xFF090A12),
-      );
-      final eye = Paint()..color = const Color(0xFFFFE7F2);
-      canvas.drawCircle(Offset(17 + dir * 1.5, 13.5), 1.8, eye);
-      canvas.drawCircle(Offset(24 + dir * 1.5, 13.5), 1.8, eye);
-
-      // Arm and hand extend toward the weapon, so the weapon is visibly held.
-      final shoulder = Offset(dir > 0 ? 29 : 13, 23);
-      final elbow = Offset(dir > 0 ? 35 : 7, 27);
-      final hand = Offset(dir > 0 ? 36 : 6, 29);
-      final arm = Paint()
-        ..color = body
-        ..strokeWidth = 6
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(shoulder, elbow, arm);
-      canvas.drawLine(elbow, hand, arm);
-      canvas.drawCircle(hand, 3.2, Paint()..color = accent);
-
-      if (kind == 'hammer') {
-        // Heavy hammer: long handle in hand + large head at the far end.
-        final handleEnd = Offset(hand.dx + dir * 16, 17);
-        final hp = Paint()
-          ..color = const Color(0xFF9A633A)
-          ..strokeWidth = 4
-          ..strokeCap = StrokeCap.round;
-        canvas.drawLine(hand, handleEnd, hp);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(handleEnd.dx - (dir > 0 ? 7 : -21), handleEnd.dy - 7, 28, 13),
-            const Radius.circular(3),
-          ),
-          Paint()..color = const Color(0xFF4D5260),
-        );
-        canvas.drawRect(
-          Rect.fromLTWH(
-            dir > 0 ? handleEnd.dx + 5 : handleEnd.dx - 9,
-            handleEnd.dy - 5,
-            4,
-            9,
-          ),
-          Paint()..color = const Color(0xFF8C94A7),
-        );
-      } else if (kind == 'wood') {
-        final clubEnd = Offset(hand.dx + dir * 19, 20);
-        canvas.drawLine(
-          hand,
-          clubEnd,
-          Paint()
-            ..color = const Color(0xFF8A4D25)
-            ..strokeWidth = 6
-            ..strokeCap = StrokeCap.round,
-        );
-        canvas.drawOval(
-          Rect.fromCenter(center: clubEnd, width: 11, height: 17),
-          Paint()..color = const Color(0xFFD0914E),
-        );
-      } else if (kind == 'knife') {
-        final bladeEnd = Offset(hand.dx + dir * 19, 25);
-        canvas.drawLine(
-          hand,
-          bladeEnd,
-          Paint()
-            ..color = const Color(0xFF5B3A2A)
-            ..strokeWidth = 4
-            ..strokeCap = StrokeCap.round,
-        );
-        final blade = Path()
-          ..moveTo(bladeEnd.dx, bladeEnd.dy - 4)
-          ..lineTo(bladeEnd.dx + dir * 16, bladeEnd.dy - 9)
-          ..lineTo(bladeEnd.dx + dir * 10, bladeEnd.dy + 2)
-          ..close();
-        canvas.drawPath(blade, Paint()..color = const Color(0xFFD9E4F5));
-        canvas.drawLine(
-          Offset(bladeEnd.dx + dir * 2, bladeEnd.dy - 2),
-          Offset(bladeEnd.dx + dir * 12, bladeEnd.dy - 5),
-          Paint()..color = Colors.white..strokeWidth = 1.2,
-        );
-      } else if (kind == 'archer') {
-        final bow = Paint()
-          ..color = const Color(0xFFD89B5E)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5;
-        final bowPath = Path()
-          ..moveTo(hand.dx + dir * 2, 16)
-          ..quadraticBezierTo(hand.dx + dir * 13, 28, hand.dx + dir * 2, 40);
-        canvas.drawPath(bowPath, bow);
-        canvas.drawLine(
-          Offset(hand.dx + dir * 2, 16),
-          Offset(hand.dx + dir * 2, 40),
-          bow,
-        );
-        bow.style = PaintingStyle.fill;
-      } else if (kind == 'fire') {
-        final flame = Path()
-          ..moveTo(hand.dx + dir * 5, hand.dy)
-          ..lineTo(hand.dx + dir * 16, hand.dy - 6)
-          ..lineTo(hand.dx + dir * 12, hand.dy)
-          ..lineTo(hand.dx + dir * 18, hand.dy + 4)
-          ..close();
-        canvas.drawPath(flame, Paint()..color = const Color(0xFFFF6A21));
-        canvas.drawCircle(
-          Offset(hand.dx + dir * 10, hand.dy),
-          4,
-          Paint()..color = const Color(0xFFFFE27A),
-        );
-      } else {
-        // Sword Knight: guard + grip + long blade aligned from the hand.
-        final guard = Offset(hand.dx + dir * 3, hand.dy);
-        canvas.drawLine(
-          Offset(guard.dx, guard.dy - 7),
-          Offset(guard.dx, guard.dy + 7),
-          Paint()
-            ..color = const Color(0xFFE0B34A)
-            ..strokeWidth = 3.5
-            ..strokeCap = StrokeCap.round,
-        );
-        final bladeBase = Offset(guard.dx + dir * 3, guard.dy);
-        final bladeTip = Offset(bladeBase.dx + dir * 23, bladeBase.dy - 11);
-        final blade = Path()
-          ..moveTo(bladeBase.dx, bladeBase.dy - 4)
-          ..lineTo(bladeTip.dx, bladeTip.dy)
-          ..lineTo(bladeBase.dx + dir * 6, bladeBase.dy + 5)
-          ..close();
-        canvas.drawPath(blade, Paint()..color = const Color(0xFFDCE8F8));
-        canvas.drawLine(
-          bladeBase,
-          Offset(bladeTip.dx - dir * 4, bladeTip.dy + 1),
-          Paint()..color = Colors.white..strokeWidth = 1.3,
-        );
+      switch (kind) {
+        case 'hammer':
+          _drawSpHammerGuard(canvas, e);
+          break;
+        case 'wood':
+          _drawSpWoodenClub(canvas, e);
+          break;
+        case 'knife':
+          _drawSpKnifeThief(canvas, e);
+          break;
+        case 'fire':
+          _drawSpFireShooter(canvas, e);
+          break;
+        case 'archer':
+          _drawSpArcher(canvas, e);
+          break;
+        default:
+          _drawSpSwordKnight(canvas, e);
       }
     }
 
-    // Health bar for armored enemies.
+    // Health bar is kept outside the art silhouette.
     if (e.health > 1) {
-      final bar = Rect.fromLTWH(0, -9, w, 4);
+      final w = 44.0;
+      final ratio = (e.health / 2).clamp(0.0, 1.0);
       canvas.drawRRect(
-        RRect.fromRectAndRadius(bar, const Radius.circular(2)),
-        Paint()..color = const Color(0x66000000),
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-22, -62, 44, 5),
+          const Radius.circular(3),
+        ),
+        _spPaint(const Color(0xAA05070D)),
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, -9, w * (e.health / 2).clamp(0.0, 1.0), 4),
-          const Radius.circular(2),
+          Rect.fromLTWH(-22, -62, w * ratio, 5),
+          const Radius.circular(3),
         ),
-        Paint()..color = const Color(0xFFFFD54A),
+        _spPaint(const Color(0xFFFFD34D)),
       );
     }
 
     canvas.restore();
   }
 
-  void _drawFireball(Canvas canvas, TrollEntity e) {
-    final center = Offset(e.rect.x + e.rect.w / 2, e.rect.y + e.rect.h / 2);
-    final glow = Paint()
-      ..color = const Color(0xFFFF6A1A).withOpacity(.28)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawCircle(center, 13, glow);
-    final outer = Paint()..color = const Color(0xFFFF7A21);
-    canvas.drawCircle(center, 8, outer);
-    final inner = Paint()..color = const Color(0xFFFFE27A);
-    canvas.drawCircle(Offset(center.dx - e.vx.sign * 2, center.dy - 1), 4, inner);
-    final flame = Path()
-      ..moveTo(center.dx - e.vx.sign * 7, center.dy)
-      ..lineTo(center.dx - e.vx.sign * 18, center.dy - 5)
-      ..lineTo(center.dx - e.vx.sign * 12, center.dy + 5)
+  void _drawSpHumanoidBody(
+    Canvas canvas, {
+    required Color suit,
+    required Color dark,
+    required Color light,
+    required Color skin,
+    bool hood = false,
+    bool helmet = false,
+  }) {
+    // Boots.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-18, -17, 13, 15),
+        const Radius.circular(4),
+      ),
+      _spPaint(const Color(0xFF10131D)),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(5, -17, 13, 15),
+        const Radius.circular(4),
+      ),
+      _spPaint(const Color(0xFF10131D)),
+    );
+
+    // Legs with hard rim.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-16, -32, 12, 20),
+        const Radius.circular(4),
+      ),
+      _spPaint(dark),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(4, -32, 12, 20),
+        const Radius.circular(4),
+      ),
+      _spPaint(dark),
+    );
+
+    // Main torso, shoulder plates and center seam.
+    final torso = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(-23, -60, 46, 32),
+      const Radius.circular(9),
+    );
+    canvas.drawRRect(torso, _spPaint(dark));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-19, -57, 38, 25),
+        const Radius.circular(7),
+      ),
+      _spPaint(suit),
+    );
+    canvas.drawRect(
+      const Rect.fromLTWH(-2, -55, 4, 22),
+      _spPaint(light, opacity: .55),
+    );
+
+    // Shoulder armor.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-27, -55, 12, 12),
+        const Radius.circular(4),
+      ),
+      _spPaint(light),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(15, -55, 12, 12),
+        const Radius.circular(4),
+      ),
+      _spPaint(light),
+    );
+
+    // Neck.
+    canvas.drawRect(const Rect.fromLTWH(-7, -67, 14, 9), _spPaint(skin));
+
+    // Head/hood/helmet.
+    final head = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(-24, -91, 48, 29),
+      const Radius.circular(11),
+    );
+    canvas.drawRRect(head, _spPaint(dark));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-20, -88, 40, 22),
+        const Radius.circular(8),
+      ),
+      _spPaint(hood ? suit : skin),
+    );
+
+    if (hood || helmet) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-22, -87, 44, 14),
+          const Radius.circular(7),
+        ),
+        _spPaint(suit),
+      );
+      canvas.drawRect(
+        const Rect.fromLTWH(-19, -78, 38, 7),
+        _spPaint(const Color(0xFF090B12)),
+      );
+    } else {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(-19, -79, 38, 8),
+          const Radius.circular(3),
+        ),
+        _spPaint(const Color(0xFF090B12)),
+      );
+    }
+
+    // Eyes/visor highlights.
+    canvas.drawCircle(
+      const Offset(-9, -75),
+      3,
+      _spPaint(const Color(0xFFFFE9F3)),
+    );
+    canvas.drawCircle(
+      const Offset(9, -75),
+      3,
+      _spPaint(const Color(0xFFFFE9F3)),
+    );
+    canvas.drawCircle(
+      const Offset(-8, -75),
+      1.2,
+      _spPaint(const Color(0xFF11131B)),
+    );
+    canvas.drawCircle(
+      const Offset(10, -75),
+      1.2,
+      _spPaint(const Color(0xFF11131B)),
+    );
+
+    // Belt and buckle.
+    canvas.drawRect(
+      const Rect.fromLTWH(-20, -33, 40, 5),
+      _spPaint(const Color(0xFF171B27)),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-5, -35, 10, 9),
+        const Radius.circular(2),
+      ),
+      _spPaint(const Color(0xFFFFC83D)),
+    );
+  }
+
+  void _drawSpArm(Canvas canvas, Offset hand, Color suit, Color skin) {
+    final arm = Paint()
+      ..color = suit
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(20, -51), hand, arm);
+    canvas.drawCircle(hand, 5, _spPaint(skin));
+  }
+
+  void _drawSpHammerGuard(Canvas canvas, TrollEntity e) {
+    _drawSpHumanoidBody(
+      canvas,
+      suit: const Color(0xFFE33450),
+      dark: const Color(0xFF4B1424),
+      light: const Color(0xFFFF687A),
+      skin: const Color(0xFFD98E72),
+      helmet: true,
+    );
+
+    final hand = const Offset(27, -38);
+    _drawSpArm(canvas, hand, const Color(0xFFE33450), const Color(0xFFD98E72));
+
+    // Heavy hammer held in both hands.
+    final hammerAngle = e.attackCooldown > 0 ? -.55 : -.18;
+    canvas.save();
+    canvas.translate(hand.dx, hand.dy);
+    canvas.rotate(hammerAngle);
+    canvas.drawRect(
+      const Rect.fromLTWH(-4, -5, 9, 47),
+      _spPaint(const Color(0xFF8A5A37)),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-19, -12, 38, 17),
+        const Radius.circular(5),
+      ),
+      _spPaint(const Color(0xFF4C5362)),
+    );
+    canvas.drawRect(
+      const Rect.fromLTWH(-13, -9, 26, 4),
+      _spPaint(const Color(0xFF8D96AA)),
+    );
+    canvas.restore();
+
+    // Armor highlight.
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(-15, -84)
+        ..lineTo(-7, -87)
+        ..lineTo(4, -87),
+      const Color(0xFFFFA2B0),
+      1.5,
+    );
+  }
+
+  void _drawSpWoodenClub(Canvas canvas, TrollEntity e) {
+    _drawSpHumanoidBody(
+      canvas,
+      suit: const Color(0xFFC56A2E),
+      dark: const Color(0xFF4A2818),
+      light: const Color(0xFFE9A15C),
+      skin: const Color(0xFFC78B68),
+    );
+    final hand = const Offset(25, -38);
+    _drawSpArm(canvas, hand, const Color(0xFFC56A2E), const Color(0xFFC78B68));
+    canvas.save();
+    canvas.translate(hand.dx, hand.dy);
+    canvas.rotate(-.28);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-4, -2, 9, 43),
+        const Radius.circular(4),
+      ),
+      _spPaint(const Color(0xFF7A4324)),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-12, -13, 24, 17),
+        const Radius.circular(7),
+      ),
+      _spPaint(const Color(0xFFD28A4C)),
+    );
+    canvas.drawCircle(const Offset(-5, -5), 2, _spPaint(const Color(0xFF7A4324)));
+    canvas.drawCircle(const Offset(5, -9), 1.5, _spPaint(const Color(0xFF7A4324)));
+    canvas.restore();
+  }
+
+  void _drawSpKnifeThief(Canvas canvas, TrollEntity e) {
+    _drawSpHumanoidBody(
+      canvas,
+      suit: const Color(0xFF3FA95B),
+      dark: const Color(0xFF103827),
+      light: const Color(0xFF83E06D),
+      skin: const Color(0xFFB87563),
+      hood: true,
+    );
+    final hand = const Offset(25, -38);
+    _drawSpArm(canvas, hand, const Color(0xFF3FA95B), const Color(0xFFB87563));
+
+    // Knife is held forward with a distinct grip and steel blade.
+    canvas.drawRect(
+      Rect.fromLTWH(hand.dx, hand.dy - 3, 10, 6),
+      _spPaint(const Color(0xFF5D3726)),
+    );
+    final blade = Path()
+      ..moveTo(hand.dx + 7, hand.dy - 5)
+      ..lineTo(hand.dx + 36, hand.dy - 13)
+      ..lineTo(hand.dx + 23, hand.dy + 2)
+      ..lineTo(hand.dx + 7, hand.dy + 2)
       ..close();
-    canvas.drawPath(flame, Paint()..color = const Color(0xFFFF3D21));
+    canvas.drawPath(blade, _spPaint(const Color(0xFFE4EEF9)));
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(hand.dx + 12, hand.dy - 2)
+        ..lineTo(hand.dx + 30, hand.dy - 9),
+      const Color(0xFFFFFFFF),
+      1.4,
+    );
+
+    // Small throwing-knife holster on the belt.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(11, -42, 9, 15),
+        const Radius.circular(2),
+      ),
+      _spPaint(const Color(0xFF18231D)),
+    );
+  }
+
+  void _drawSpSwordKnight(Canvas canvas, TrollEntity e) {
+    _drawSpHumanoidBody(
+      canvas,
+      suit: const Color(0xFF6C3DB7),
+      dark: const Color(0xFF25133E),
+      light: const Color(0xFFB17CFF),
+      skin: const Color(0xFFC78D78),
+      helmet: true,
+    );
+    final hand = const Offset(26, -39);
+    _drawSpArm(canvas, hand, const Color(0xFF6C3DB7), const Color(0xFFC78D78));
+
+    // Sword: grip -> guard -> blade, all aligned as one held weapon.
+    canvas.drawRect(
+      Rect.fromLTWH(hand.dx - 2, hand.dy - 1, 8, 16),
+      _spPaint(const Color(0xFF6E432D)),
+    );
+    canvas.drawLine(
+      Offset(hand.dx - 6, hand.dy),
+      Offset(hand.dx + 10, hand.dy),
+      Paint()
+        ..color = const Color(0xFFFFD45B)
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+    final blade = Path()
+      ..moveTo(hand.dx + 7, hand.dy - 4)
+      ..lineTo(hand.dx + 43, hand.dy - 16)
+      ..lineTo(hand.dx + 30, hand.dy + 2)
+      ..lineTo(hand.dx + 7, hand.dy + 3)
+      ..close();
+    canvas.drawPath(blade, _spPaint(const Color(0xFFDDE9F7)));
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(hand.dx + 11, hand.dy - 2)
+        ..lineTo(hand.dx + 36, hand.dy - 12),
+      Colors.white,
+      1.6,
+    );
+  }
+
+  void _drawSpFireShooter(Canvas canvas, TrollEntity e) {
+    _drawSpHumanoidBody(
+      canvas,
+      suit: const Color(0xFF7138B9),
+      dark: const Color(0xFF24123F),
+      light: const Color(0xFFB47BFF),
+      skin: const Color(0xFFB87872),
+      hood: true,
+    );
+    final hand = const Offset(27, -40);
+    _drawSpArm(canvas, hand, const Color(0xFF7138B9), const Color(0xFFB87872));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(hand.dx + 1, hand.dy - 6, 18, 12),
+        const Radius.circular(4),
+      ),
+      _spPaint(const Color(0xFF2D203B)),
+    );
+    final flame = Path()
+      ..moveTo(hand.dx + 18, hand.dy)
+      ..cubicTo(hand.dx + 27, hand.dy - 10, hand.dx + 34, hand.dy - 4, hand.dx + 37, hand.dy - 11)
+      ..cubicTo(hand.dx + 40, hand.dy - 2, hand.dx + 35, hand.dy + 5, hand.dx + 25, hand.dy + 5)
+      ..close();
+    canvas.drawPath(flame, _spPaint(const Color(0xFFFF5B21)));
+    canvas.drawCircle(
+      Offset(hand.dx + 26, hand.dy),
+      4,
+      _spPaint(const Color(0xFFFFE17A)),
+    );
+  }
+
+  void _drawSpArcher(Canvas canvas, TrollEntity e) {
+    _drawSpHumanoidBody(
+      canvas,
+      suit: const Color(0xFF6D3DA1),
+      dark: const Color(0xFF21112F),
+      light: const Color(0xFFD39BFF),
+      skin: const Color(0xFFBC7B68),
+      hood: true,
+    );
+    final hand = const Offset(25, -40);
+    _drawSpArm(canvas, hand, const Color(0xFF6D3DA1), const Color(0xFFBC7B68));
+    final bow = Path()
+      ..moveTo(hand.dx + 3, -63)
+      ..quadraticBezierTo(hand.dx + 25, -40, hand.dx + 3, -17);
+    _spStroke(canvas, bow, const Color(0xFFD8A15F), 3);
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(hand.dx + 3, -63)
+        ..lineTo(hand.dx + 3, -17),
+      const Color(0xFFE8D4B2),
+      1.3,
+    );
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(hand.dx + 3, -40)
+        ..lineTo(hand.dx + 34, -40),
+      const Color(0xFFE8EDF5),
+      1.5,
+    );
+    final arrow = Path()
+      ..moveTo(hand.dx + 34, -40)
+      ..lineTo(hand.dx + 26, -44)
+      ..lineTo(hand.dx + 26, -36)
+      ..close();
+    canvas.drawPath(arrow, _spPaint(const Color(0xFFE8EDF5)));
+  }
+
+  void _drawSpBat(Canvas canvas) {
+    final wing = _spPaint(const Color(0xFF713AC2));
+    final wingLight = _spPaint(const Color(0xFFB778FF));
+    final flap = sin(engine.stageSeed * .03 + engine.player.rect.left * .01) * 4;
+    final left = Path()
+      ..moveTo(-7, -48)
+      ..lineTo(-34, -68 - flap)
+      ..lineTo(-28, -39)
+      ..lineTo(-42, -49 - flap)
+      ..lineTo(-34, -22)
+      ..lineTo(-12, -30)
+      ..close();
+    final right = Path()
+      ..moveTo(7, -48)
+      ..lineTo(34, -68 + flap)
+      ..lineTo(28, -39)
+      ..lineTo(42, -49 + flap)
+      ..lineTo(34, -22)
+      ..lineTo(12, -30)
+      ..close();
+    canvas.drawPath(left, wing);
+    canvas.drawPath(right, wing);
+    canvas.drawPath(
+      Path()
+        ..moveTo(-26, -57)
+        ..lineTo(-32, -65 - flap)
+        ..lineTo(-28, -43),
+      wingLight,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(26, -57)
+        ..lineTo(32, -65 + flap)
+        ..lineTo(28, -43),
+      wingLight,
+    );
+    canvas.drawCircle(const Offset(0, -43), 20, _spPaint(const Color(0xFF24123F)));
+    canvas.drawCircle(const Offset(-7, -46), 3.5, _spPaint(const Color(0xFFFF4E78)));
+    canvas.drawCircle(const Offset(7, -46), 3.5, _spPaint(const Color(0xFFFF4E78)));
+    canvas.drawPath(
+      Path()
+        ..moveTo(-9, -35)
+        ..lineTo(-3, -35)
+        ..lineTo(-6, -28)
+        ..close(),
+      _spPaint(Colors.white),
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(3, -35)
+        ..lineTo(9, -35)
+        ..lineTo(6, -28)
+        ..close(),
+      _spPaint(Colors.white),
+    );
+  }
+
+  void _drawSpSpikedWalker(Canvas canvas) {
+    final dark = _spPaint(const Color(0xFF281735));
+    final body = _spPaint(const Color(0xFF7650A4));
+    final edge = _spPaint(const Color(0xFFD3A7FF));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-28, -42, 56, 29),
+        const Radius.circular(13),
+      ),
+      dark,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-24, -39, 48, 23),
+        const Radius.circular(10),
+      ),
+      body,
+    );
+    for (int i = -2; i <= 2; i++) {
+      final x = i * 10.0;
+      final spike = Path()
+        ..moveTo(x - 5, -38)
+        ..lineTo(x, -55)
+        ..lineTo(x + 5, -38)
+        ..close();
+      canvas.drawPath(spike, edge);
+    }
+    canvas.drawCircle(const Offset(-10, -27), 4, _spPaint(const Color(0xFFFFF0FB)));
+    canvas.drawCircle(const Offset(10, -27), 4, _spPaint(const Color(0xFFFFF0FB)));
+    canvas.drawCircle(const Offset(-9, -27), 1.6, dark);
+    canvas.drawCircle(const Offset(11, -27), 1.6, dark);
+    canvas.drawOval(const Rect.fromLTWH(-21, -19, 14, 6), dark);
+    canvas.drawOval(const Rect.fromLTWH(7, -19, 14, 6), dark);
+  }
+
+  void _drawFireball(Canvas canvas, TrollEntity e) {
+    final center = Offset(e.rect.centerX, e.rect.centerY);
+    final dir = e.vx.sign == 0 ? 1.0 : e.vx.sign;
+
+    final glow = Paint()
+      ..color = const Color(0xFFFF5B21).withOpacity(.30)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    canvas.drawCircle(center, 15, glow);
+
+    final flame = Path()
+      ..moveTo(center.dx - dir * 15, center.dy)
+      ..cubicTo(
+        center.dx - dir * 27, center.dy - 8,
+        center.dx - dir * 20, center.dy + 9,
+        center.dx - dir * 34, center.dy + 2,
+      )
+      ..cubicTo(
+        center.dx - dir * 23, center.dy + 1,
+        center.dx - dir * 17, center.dy + 6,
+        center.dx - dir * 12, center.dy + 5,
+      )
+      ..close();
+    canvas.drawPath(flame, _spPaint(const Color(0xFFFF3E20)));
+
+    canvas.drawCircle(center, 9, _spPaint(const Color(0xFFFF7A22)));
+    canvas.drawCircle(
+      Offset(center.dx - dir * 2, center.dy - 2),
+      5,
+      _spPaint(const Color(0xFFFFE27A)),
+    );
+    canvas.drawCircle(
+      Offset(center.dx - dir * 4, center.dy - 4),
+      2,
+      _spPaint(Colors.white),
+    );
   }
 
   void _drawRewardChest(Canvas canvas, TrollEntity e) {
-    final r = RRect.fromRectAndRadius(
-      e.rect.toRect(),
-      const Radius.circular(6),
-    );
+    final x = e.rect.centerX;
+    final y = e.rect.bottom;
+    canvas.save();
+    canvas.translate(x, y);
 
-    // Approved Season+ reward box: warm wood, gold bands, bright lock and
-    // a small reward marker so the player immediately knows it is breakable.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(e.rect.toRect().inflate(5), const Radius.circular(8)),
+    // Ground shadow.
+    canvas.drawOval(
+      const Rect.fromLTWH(-31, -2, 62, 10),
       Paint()
-        ..color = const Color(0xFFFFB52E).withOpacity(.16)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+        ..color = const Color(0x66000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
 
-    canvas.drawRRect(r, Paint()..color = const Color(0xFF6B3B22));
-    canvas.drawRect(
-      Rect.fromLTWH(e.rect.x, e.rect.y + 13, e.rect.w, 6),
-      Paint()..color = const Color(0xFFD9952E),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(e.rect.x + 3, e.rect.y + 4, 4, e.rect.h - 8),
-      Paint()..color = const Color(0xFF9C5A2B),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(e.rect.right - 7, e.rect.y + 4, 4, e.rect.h - 8),
-      Paint()..color = const Color(0xFF9C5A2B),
-    );
-
-    // Crossed planks give the chest the same illustrated silhouette as the
-    // approved reference instead of looking like a generic rectangle.
-    final plank = Paint()
-      ..color = const Color(0xFFE2A451)
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(e.rect.x + 8, e.rect.y + 8),
-      Offset(e.rect.right - 8, e.rect.bottom - 8),
-      plank,
-    );
-    canvas.drawLine(
-      Offset(e.rect.right - 8, e.rect.y + 8),
-      Offset(e.rect.x + 8, e.rect.bottom - 8),
-      plank,
-    );
-
+    // Outer glow.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 5, e.rect.y + 11, 10, 12),
-        const Radius.circular(2),
+        const Rect.fromLTWH(-30, -56, 60, 47),
+        const Radius.circular(8),
       ),
-      Paint()..color = const Color(0xFFFFD54A),
-    );
-    canvas.drawCircle(
-      Offset(e.rect.x + e.rect.w / 2, e.rect.y + 17),
-      2,
-      Paint()..color = const Color(0xFF7A4B00),
+      Paint()
+        ..color = const Color(0xFFFFC83D).withOpacity(.10)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
     );
 
+    // Lid with a real curved silhouette.
+    final lid = Path()
+      ..moveTo(-29, -42)
+      ..quadraticBezierTo(-27, -58, 0, -61)
+      ..quadraticBezierTo(27, -58, 29, -42)
+      ..close();
+    canvas.drawPath(lid, _spPaint(const Color(0xFF9B5A2E)));
+    _spStroke(canvas, lid, const Color(0xFFFFC45B), 2);
+
+    // Body.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-29, -43, 58, 35),
+        const Radius.circular(6),
+      ),
+      _spPaint(const Color(0xFF704022)),
+    );
+    canvas.drawRect(
+      const Rect.fromLTWH(-26, -40, 52, 6),
+      _spPaint(const Color(0xFFB96C31)),
+    );
+
+    // Wooden plank highlights.
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(-21, -34)
+        ..lineTo(20, -12),
+      const Color(0xFFC9823C),
+      2,
+    );
+    _spStroke(
+      canvas,
+      Path()
+        ..moveTo(21, -34)
+        ..lineTo(-20, -12),
+      const Color(0xFFC9823C),
+      2,
+    );
+
+    // Gold bands and lock.
+    canvas.drawRect(
+      const Rect.fromLTWH(-25, -44, 6, 35),
+      _spPaint(const Color(0xFFE3AD3B)),
+    );
+    canvas.drawRect(
+      const Rect.fromLTWH(19, -44, 6, 35),
+      _spPaint(const Color(0xFFE3AD3B)),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-8, -31, 16, 16),
+        const Radius.circular(3),
+      ),
+      _spPaint(const Color(0xFFFFD45A)),
+    );
+    canvas.drawCircle(const Offset(0, -23), 3, _spPaint(const Color(0xFF70420A)));
+
+    // Reward indicator is deliberately small and sits above the box.
     final markerColor = e.rewardKind == 'gems'
         ? const Color(0xFF39E7FF)
         : e.rewardKind == 'heart'
             ? const Color(0xFFFF4F83)
             : const Color(0xFFFFC83D);
     canvas.drawCircle(
-      Offset(e.rect.centerX, e.rect.y - 6),
-      7,
+      const Offset(0, -68),
+      8,
       Paint()
-        ..color = markerColor.withOpacity(.20)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+        ..color = markerColor.withOpacity(.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
     );
-    canvas.drawCircle(
-      Offset(e.rect.centerX, e.rect.y - 6),
-      4,
-      Paint()..color = markerColor,
-    );
+    canvas.drawCircle(const Offset(0, -68), 5, _spPaint(markerColor));
+    canvas.restore();
   }
 
   void _drawPlayer(Canvas canvas, TrollEntity p, {double opacity = 1.0}) {
-    var paint = Paint()..color = theme.accentBright.withOpacity(opacity);
-    
+    final moving = p.vx.abs() > 8;
+    final airborne = p.vy.abs() > 25;
+    final crouched = engine.isCrouching;
+    final step = moving ? sin(engine.stageSeed * .17 + p.rect.left * .035) * 2.5 : 0.0;
+    final squash = airborne ? 1.04 : (crouched ? .82 : 1.0);
+
     canvas.save();
-    canvas.translate(p.rect.x + p.rect.w/2, p.rect.y + p.rect.h/2);
-    canvas.scale(engine.playerScale, engine.playerScale);
-    
-    if (engine.isGravityInverted && opacity == 1.0) { // Flip only actual player upside down
-      canvas.scale(1.0, -1.0);
+    canvas.translate(p.rect.centerX, p.rect.bottom);
+    if (engine.playerFaceDir < 0) canvas.scale(-1, 1);
+    canvas.scale(1.08, squash);
+
+    // Soft contact shadow.
+    canvas.drawOval(
+      const Rect.fromLTWH(-25, -3, 50, 8),
+      Paint()
+        ..color = const Color(0x55000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    // Feet/step animation.
+    final footPaint = _spPaint(const Color(0xFF24133B).withOpacity(opacity));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(-17 + step, -10, 13, 10),
+        const Radius.circular(4),
+      ),
+      footPaint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(4 - step, -10, 13, 10),
+        const Radius.circular(4),
+      ),
+      footPaint,
+    );
+
+    // Body silhouette: keep the familiar LVL LOOL purple creature, but give
+    // it readable anatomy and an actual animated stance.
+    final body = Path()
+      ..moveTo(-21, -17)
+      ..quadraticBezierTo(-23, -42, -16, -55)
+      ..quadraticBezierTo(0, -66, 16, -55)
+      ..quadraticBezierTo(23, -42, 21, -17)
+      ..quadraticBezierTo(0, -8, -21, -17)
+      ..close();
+    canvas.drawPath(
+      body,
+      _spPaint(const Color(0xFF9D62FF).withOpacity(opacity)),
+    );
+    _spStroke(
+      canvas,
+      body,
+      const Color(0xFFD9B5FF).withOpacity(opacity),
+      2,
+    );
+
+    // Face panel.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-17, -50, 34, 22),
+        const Radius.circular(8),
+      ),
+      _spPaint(const Color(0xFFB978FF).withOpacity(opacity)),
+    );
+
+    // Eyes track facing direction.
+    final eye = _spPaint(const Color(0xFF171021).withOpacity(opacity));
+    canvas.drawOval(
+      Rect.fromLTWH(-10, -45, 6, 10),
+      eye,
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(4, -45, 6, 10),
+      eye,
+    );
+    canvas.drawCircle(const Offset(-8, -42), 1.2, _spPaint(Colors.white.withOpacity(opacity)));
+    canvas.drawCircle(const Offset(6, -42), 1.2, _spPaint(Colors.white.withOpacity(opacity)));
+
+    // Small expressive mouth changes with crouch.
+    if (!crouched) {
+      _spStroke(
+        canvas,
+        Path()
+          ..moveTo(-5, -31)
+          ..quadraticBezierTo(0, -28, 5, -31),
+        const Color(0xFF5D2D82).withOpacity(opacity),
+        1.6,
+      );
     }
-    
-    canvas.translate(-(p.rect.x + p.rect.w/2), -(p.rect.y + p.rect.h/2));
 
-    var r = RRect.fromRectAndRadius(p.rect.toRect(), const Radius.circular(7));
-    canvas.drawRRect(r, paint);
-    paint.color = theme.accent.withOpacity(.8 * opacity);
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.5;
-    canvas.drawRRect(r, paint);
-    paint.style = PaintingStyle.fill;
-    
-    paint.color = theme.accent.withOpacity(0.35 * opacity);
-    paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    canvas.drawRRect(r, paint);
-    paint.maskFilter = null;
+    // Crouch keeps the same character identity while reducing the visual
+    // silhouette to match the gameplay hitbox.
+    if (crouched) {
+      canvas.scale(1.0, .84);
+    }
 
-    paint.color = const Color(0xFF07080A);
-    double eyeOffset = engine.playerFaceDir * 4;
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(p.rect.x + 8 + eyeOffset, p.rect.y + 8, 4, 8), 
-      const Radius.circular(2)
-    ), paint);
-    canvas.drawRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(p.rect.x + 18 + eyeOffset, p.rect.y + 8, 4, 8), 
-      const Radius.circular(2)
-    ), paint);
+    // Fireball launch hand/arm is visible when the player is facing right.
+    if (engine.fireCooldown > 0) {
+      canvas.drawCircle(
+        const Offset(22, -35),
+        5,
+        _spPaint(const Color(0xFFFF7A22).withOpacity(opacity)),
+      );
+    }
 
     canvas.restore();
   }
