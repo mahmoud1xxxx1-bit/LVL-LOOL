@@ -1775,102 +1775,301 @@ class _TrollPainter extends CustomPainter {
   }
 
   void _drawSeasonPlusEnemy(Canvas canvas, TrollEntity e) {
-    final p = Paint()..color = const Color(0xFFFF5577);
-    final body = RRect.fromRectAndRadius(
-      e.rect.toRect(),
-      const Radius.circular(8),
-    );
-    p.maskFilter = const MaskFilter.blur(BlurStyle.outer, 8);
-    canvas.drawRRect(body, p);
-    p.maskFilter = null;
-    p.color = const Color(0xFF5A183A);
-    canvas.drawRRect(body.deflate(3), p);
+    final kind = e.enemyKind ?? 'sword';
+    final dir = (engine.player.rect.centerX - e.rect.centerX).sign == 0
+        ? 1.0
+        : (engine.player.rect.centerX - e.rect.centerX).sign;
+    final x = e.rect.x;
+    final y = e.rect.y;
+    final w = e.rect.w;
+    final h = e.rect.h;
 
-    // Eyes point toward the player.
-    final eye = Paint()..color = const Color(0xFFFFE6F0);
-    final eyeDir = (engine.player.rect.centerX - e.rect.centerX).sign;
-    canvas.drawCircle(
-      Offset(e.rect.x + 13 + eyeDir * 2, e.rect.y + 13),
-      3,
-      eye,
-    );
-    canvas.drawCircle(
-      Offset(e.rect.x + 28 + eyeDir * 2, e.rect.y + 13),
-      3,
-      eye,
+    canvas.save();
+    canvas.translate(x, y);
+
+    // Ground shadow + restrained neon rim: keeps the approved character
+    // silhouettes readable without making them look like square UI icons.
+    canvas.drawOval(
+      Rect.fromLTWH(4, h - 5, w - 8, 7),
+      Paint()
+        ..color = const Color(0x66000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
 
-    final weapon = Paint()
-      ..color = const Color(0xFFE7EAF5)
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-    final hand = Offset(
-      e.rect.x + (eyeDir >= 0 ? e.rect.w - 5 : 5),
-      e.rect.y + 28,
-    );
-    final weaponEnd = Offset(
-      hand.dx + eyeDir * 28,
-      hand.dy - 14,
-    );
-
-    if (e.enemyKind == 'hammer') {
-      weapon.color = const Color(0xFF9A6B43);
-      weapon.strokeWidth = 7;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      weapon.color = const Color(0xFF4E5260);
-      weapon.strokeWidth = 11;
-      canvas.drawLine(
-        Offset(weaponEnd.dx - eyeDir * 8, weaponEnd.dy - 2),
-        Offset(weaponEnd.dx + eyeDir * 8, weaponEnd.dy - 2),
-        weapon,
-      );
-    } else if (e.enemyKind == 'wood') {
-      weapon.color = const Color(0xFF9A6B43);
-      weapon.strokeWidth = 8;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      weapon.color = const Color(0xFFD8A56B);
-      weapon.strokeWidth = 4;
-      canvas.drawLine(
-        Offset(weaponEnd.dx - eyeDir * 4, weaponEnd.dy - 2),
-        Offset(weaponEnd.dx + eyeDir * 4, weaponEnd.dy - 2),
-        weapon,
-      );
-    } else if (e.enemyKind == 'knife') {
-      weapon.color = const Color(0xFFCFD8E8);
-      weapon.strokeWidth = 5;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      final blade = Path()
-        ..moveTo(weaponEnd.dx, weaponEnd.dy)
-        ..lineTo(weaponEnd.dx + eyeDir * 18, weaponEnd.dy - 7)
-        ..lineTo(weaponEnd.dx + eyeDir * 9, weaponEnd.dy + 5)
-        ..close();
-      canvas.drawPath(blade, weapon);
-    } else {
-      weapon.color = const Color(0xFFCFD8E8);
-      weapon.strokeWidth = 5;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      final blade = Path()
-        ..moveTo(weaponEnd.dx, weaponEnd.dy)
-        ..lineTo(weaponEnd.dx + eyeDir * 34, weaponEnd.dy - 10)
-        ..lineTo(weaponEnd.dx + eyeDir * 24, weaponEnd.dy + 2)
-        ..close();
-      canvas.drawPath(blade, weapon);
+    Color body;
+    Color dark;
+    Color accent;
+    switch (kind) {
+      case 'hammer':
+        body = const Color(0xFFE52D4D);
+        dark = const Color(0xFF4B1225);
+        accent = const Color(0xFF7E1D37);
+        break;
+      case 'wood':
+        body = const Color(0xFFC87532);
+        dark = const Color(0xFF4A2818);
+        accent = const Color(0xFFE3A15A);
+        break;
+      case 'knife':
+        body = const Color(0xFF4FAF58);
+        dark = const Color(0xFF123A28);
+        accent = const Color(0xFF8FE36B);
+        break;
+      case 'fire':
+        body = const Color(0xFF7136B8);
+        dark = const Color(0xFF24123F);
+        accent = const Color(0xFFFF7A2A);
+        break;
+      case 'bat':
+        body = const Color(0xFF6E35C9);
+        dark = const Color(0xFF25104C);
+        accent = const Color(0xFFB36BFF);
+        break;
+      case 'spiked':
+        body = const Color(0xFF6F4A8E);
+        dark = const Color(0xFF24182F);
+        accent = const Color(0xFFD2A6FF);
+        break;
+      case 'archer':
+        body = const Color(0xFF7439A7);
+        dark = const Color(0xFF21102F);
+        accent = const Color(0xFFE2A7FF);
+        break;
+      default:
+        body = const Color(0xFF7136B8);
+        dark = const Color(0xFF24123F);
+        accent = const Color(0xFFB98CFF);
     }
 
+    if (kind == 'bat') {
+      final wing = Paint()..color = body;
+      final leftWing = Path()
+        ..moveTo(20, 18)
+        ..lineTo(2, 8)
+        ..lineTo(7, 27)
+        ..lineTo(14, 22)
+        ..close();
+      final rightWing = Path()
+        ..moveTo(22, 18)
+        ..lineTo(40, 8)
+        ..lineTo(35, 27)
+        ..lineTo(28, 22)
+        ..close();
+      canvas.drawPath(leftWing, wing);
+      canvas.drawPath(rightWing, wing);
+      canvas.drawCircle(const Offset(21, 22), 12, Paint()..color = dark);
+      canvas.drawCircle(const Offset(17, 20), 2.4, Paint()..color = const Color(0xFFFF5577));
+      canvas.drawCircle(const Offset(25, 20), 2.4, Paint()..color = const Color(0xFFFF5577));
+      final teeth = Paint()..color = Colors.white;
+      canvas.drawPath(Path()..moveTo(16, 28)..lineTo(19, 28)..lineTo(17.5, 33)..close(), teeth);
+      canvas.drawPath(Path()..moveTo(23, 28)..lineTo(26, 28)..lineTo(24.5, 33)..close(), teeth);
+    } else if (kind == 'spiked') {
+      final shell = RRect.fromRectAndRadius(
+        Rect.fromLTWH(5, 17, 32, 21),
+        const Radius.circular(9),
+      );
+      canvas.drawRRect(shell, Paint()..color = dark);
+      canvas.drawRRect(shell.deflate(3), Paint()..color = body);
+      for (int i = 0; i < 5; i++) {
+        final px = 8.0 + i * 7.0;
+        final p = Path()
+          ..moveTo(px, 18)
+          ..lineTo(px + 3.5, 7)
+          ..lineTo(px + 7, 18)
+          ..close();
+        canvas.drawPath(p, Paint()..color = accent);
+      }
+      canvas.drawCircle(const Offset(12, 27), 3, Paint()..color = const Color(0xFFFFE8FF));
+      canvas.drawCircle(const Offset(31, 27), 3, Paint()..color = const Color(0xFFFFE8FF));
+      canvas.drawCircle(const Offset(12, 27), 1.3, Paint()..color = dark);
+      canvas.drawCircle(const Offset(31, 27), 1.3, Paint()..color = dark);
+    } else {
+      // Legs and boots.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(10, 33, 8, 11), const Radius.circular(3)),
+        Paint()..color = dark,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(25, 33, 8, 11), const Radius.circular(3)),
+        Paint()..color = dark,
+      );
+      canvas.drawOval(Rect.fromLTWH(7, 41, 13, 5), Paint()..color = const Color(0xFF090B15));
+      canvas.drawOval(Rect.fromLTWH(23, 41, 13, 5), Paint()..color = const Color(0xFF090B15));
+
+      // Body armor/tunic.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(8, 18, 27, 19), const Radius.circular(6)),
+        Paint()..color = dark,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(11, 19, 21, 16), const Radius.circular(5)),
+        Paint()..color = body,
+      );
+      canvas.drawRect(Rect.fromLTWH(12, 31, 19, 3), Paint()..color = accent);
+
+      // Head / hood / helmet.
+      final head = RRect.fromRectAndRadius(
+        Rect.fromLTWH(9, 3, 25, 20),
+        const Radius.circular(8),
+      );
+      canvas.drawRRect(head, Paint()..color = dark);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(11, 5, 21, 15), const Radius.circular(6)),
+        Paint()..color = body,
+      );
+
+      // Face visor. Eyes look toward the player.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(13, 10, 17, 7), const Radius.circular(3)),
+        Paint()..color = const Color(0xFF090A12),
+      );
+      final eye = Paint()..color = const Color(0xFFFFE7F2);
+      canvas.drawCircle(Offset(17 + dir * 1.5, 13.5), 1.8, eye);
+      canvas.drawCircle(Offset(24 + dir * 1.5, 13.5), 1.8, eye);
+
+      // Arm and hand extend toward the weapon, so the weapon is visibly held.
+      final shoulder = Offset(dir > 0 ? 29 : 13, 23);
+      final elbow = Offset(dir > 0 ? 35 : 7, 27);
+      final hand = Offset(dir > 0 ? 36 : 6, 29);
+      final arm = Paint()
+        ..color = body
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(shoulder, elbow, arm);
+      canvas.drawLine(elbow, hand, arm);
+      canvas.drawCircle(hand, 3.2, Paint()..color = accent);
+
+      if (kind == 'hammer') {
+        // Heavy hammer: long handle in hand + large head at the far end.
+        final handleEnd = Offset(hand.dx + dir * 16, 17);
+        final hp = Paint()
+          ..color = const Color(0xFF9A633A)
+          ..strokeWidth = 4
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(hand, handleEnd, hp);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(handleEnd.dx - (dir > 0 ? 7 : -21), handleEnd.dy - 7, 28, 13),
+            const Radius.circular(3),
+          ),
+          Paint()..color = const Color(0xFF4D5260),
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(
+            dir > 0 ? handleEnd.dx + 5 : handleEnd.dx - 9,
+            handleEnd.dy - 5,
+            4,
+            9,
+          ),
+          Paint()..color = const Color(0xFF8C94A7),
+        );
+      } else if (kind == 'wood') {
+        final clubEnd = Offset(hand.dx + dir * 19, 20);
+        canvas.drawLine(
+          hand,
+          clubEnd,
+          Paint()
+            ..color = const Color(0xFF8A4D25)
+            ..strokeWidth = 6
+            ..strokeCap = StrokeCap.round,
+        );
+        canvas.drawOval(
+          Rect.fromCenter(center: clubEnd, width: 11, height: 17),
+          Paint()..color = const Color(0xFFD0914E),
+        );
+      } else if (kind == 'knife') {
+        final bladeEnd = Offset(hand.dx + dir * 19, 25);
+        canvas.drawLine(
+          hand,
+          bladeEnd,
+          Paint()
+            ..color = const Color(0xFF5B3A2A)
+            ..strokeWidth = 4
+            ..strokeCap = StrokeCap.round,
+        );
+        final blade = Path()
+          ..moveTo(bladeEnd.dx, bladeEnd.dy - 4)
+          ..lineTo(bladeEnd.dx + dir * 16, bladeEnd.dy - 9)
+          ..lineTo(bladeEnd.dx + dir * 10, bladeEnd.dy + 2)
+          ..close();
+        canvas.drawPath(blade, Paint()..color = const Color(0xFFD9E4F5));
+        canvas.drawLine(
+          Offset(bladeEnd.dx + dir * 2, bladeEnd.dy - 2),
+          Offset(bladeEnd.dx + dir * 12, bladeEnd.dy - 5),
+          Paint()..color = Colors.white..strokeWidth = 1.2,
+        );
+      } else if (kind == 'archer') {
+        final bow = Paint()
+          ..color = const Color(0xFFD89B5E)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5;
+        final bowPath = Path()
+          ..moveTo(hand.dx + dir * 2, 16)
+          ..quadraticBezierTo(hand.dx + dir * 13, 28, hand.dx + dir * 2, 40);
+        canvas.drawPath(bowPath, bow);
+        canvas.drawLine(
+          Offset(hand.dx + dir * 2, 16),
+          Offset(hand.dx + dir * 2, 40),
+          bow,
+        );
+        bow.style = PaintingStyle.fill;
+      } else if (kind == 'fire') {
+        final flame = Path()
+          ..moveTo(hand.dx + dir * 5, hand.dy)
+          ..lineTo(hand.dx + dir * 16, hand.dy - 6)
+          ..lineTo(hand.dx + dir * 12, hand.dy)
+          ..lineTo(hand.dx + dir * 18, hand.dy + 4)
+          ..close();
+        canvas.drawPath(flame, Paint()..color = const Color(0xFFFF6A21));
+        canvas.drawCircle(
+          Offset(hand.dx + dir * 10, hand.dy),
+          4,
+          Paint()..color = const Color(0xFFFFE27A),
+        );
+      } else {
+        // Sword Knight: guard + grip + long blade aligned from the hand.
+        final guard = Offset(hand.dx + dir * 3, hand.dy);
+        canvas.drawLine(
+          Offset(guard.dx, guard.dy - 7),
+          Offset(guard.dx, guard.dy + 7),
+          Paint()
+            ..color = const Color(0xFFE0B34A)
+            ..strokeWidth = 3.5
+            ..strokeCap = StrokeCap.round,
+        );
+        final bladeBase = Offset(guard.dx + dir * 3, guard.dy);
+        final bladeTip = Offset(bladeBase.dx + dir * 23, bladeBase.dy - 11);
+        final blade = Path()
+          ..moveTo(bladeBase.dx, bladeBase.dy - 4)
+          ..lineTo(bladeTip.dx, bladeTip.dy)
+          ..lineTo(bladeBase.dx + dir * 6, bladeBase.dy + 5)
+          ..close();
+        canvas.drawPath(blade, Paint()..color = const Color(0xFFDCE8F8));
+        canvas.drawLine(
+          bladeBase,
+          Offset(bladeTip.dx - dir * 4, bladeTip.dy + 1),
+          Paint()..color = Colors.white..strokeWidth = 1.3,
+        );
+      }
+    }
+
+    // Health bar for armored enemies.
     if (e.health > 1) {
-      final bar = Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w, 4);
+      final bar = Rect.fromLTWH(0, -9, w, 4);
       canvas.drawRRect(
         RRect.fromRectAndRadius(bar, const Radius.circular(2)),
-        Paint()..color = const Color(0x55333333),
+        Paint()..color = const Color(0x66000000),
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w * (e.health / 2).clamp(0.0, 1.0), 4),
+          Rect.fromLTWH(0, -9, w * (e.health / 2).clamp(0.0, 1.0), 4),
           const Radius.circular(2),
         ),
         Paint()..color = const Color(0xFFFFD54A),
       );
     }
+
+    canvas.restore();
   }
 
   void _drawFireball(Canvas canvas, TrollEntity e) {
