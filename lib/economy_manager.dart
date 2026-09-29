@@ -13,7 +13,7 @@ class EconomyManager {
   static Future<bool> isOwnerTestModeEnabled() async {
     if (!isOwnerTestAccount()) return false;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(ownerTestModeKey) ?? false;
+    return prefs.getBool(ownerTestModeKey) ?? true;
   }
 
   static Future<bool> setOwnerTestModeEnabled(bool enabled) async {

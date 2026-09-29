@@ -68,6 +68,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   int _gems = 0;
   String? _rewardToast;
   int _rewardFlightToken = 0;
+  String _rewardFlightKind = 'gold';
 
   @override
   void initState() {
@@ -336,7 +337,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
                   child: Row(
                     children: [
-                      const _LifeHud(),
+                      _LifeHud(seasonPlus: widget.seasonPlusStage),
                       if (widget.seasonPlusStage) ...[
                         const SizedBox(width: 6),
                         _hitHud(),
@@ -482,11 +483,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
                         ),
                       );
                     },
-                    child: const Icon(
-                      Icons.monetization_on_rounded,
-                      color: Color(0xFFFFD54A),
-                      size: 30,
-                    ),
+                    child: _SeasonPlusCurrencyIcon(kind: _rewardFlightKind, size: 30),
                   ),
                 ),
               ),
@@ -757,6 +754,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
   }
 
   Widget _currencyHud(IconData icon, int value, Color color) {
+    final kind = color == const Color(0xFFFFD54A) ? 'gold' : 'gems';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
@@ -767,7 +765,7 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 16),
+          _SeasonPlusCurrencyIcon(kind: kind, size: 17),
           const SizedBox(width: 4),
           Text(
             '$value',
@@ -877,7 +875,8 @@ class _TrollGameState extends State<TrollGame> with SingleTickerProviderStateMix
 }
 
 class _LifeHud extends StatefulWidget {
-  const _LifeHud();
+  const _LifeHud({this.seasonPlus = false});
+  final bool seasonPlus;
   @override State<_LifeHud> createState() => _LifeHudState();
 }
 class _LifeHudState extends State<_LifeHud> {
@@ -902,13 +901,80 @@ class _LifeHudState extends State<_LifeHud> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.favorite_rounded, color: Color(0xFFFF5478), size: 17),
+          widget.seasonPlus
+              ? const _SeasonPlusCurrencyIcon(kind: 'heart', size: 18)
+              : const Icon(Icons.favorite_rounded, color: Color(0xFFFF5478), size: 17),
           const SizedBox(width: 6),
           Text('$_lives/$_max', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)),
         ],
       ),
     );
   }
+}
+
+class _SeasonPlusCurrencyIcon extends StatelessWidget {
+  const _SeasonPlusCurrencyIcon({required this.kind, required this.size});
+  final String kind;
+  final double size;
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size.square(size),
+      painter: _SeasonPlusCurrencyPainter(kind),
+    );
+  }
+}
+
+class _SeasonPlusCurrencyPainter extends CustomPainter {
+  _SeasonPlusCurrencyPainter(this.kind);
+  final String kind;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()..style = PaintingStyle.fill;
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    if (kind == 'heart') {
+      p.color = const Color(0xFFFF4F83);
+      final path = Path()
+        ..moveTo(cx, size.height * .86)
+        ..cubicTo(size.width * .08, size.height * .53, size.width * .14, size.height * .15, size.width * .38, size.height * .18)
+        ..cubicTo(size.width * .49, size.height * .19, cx, size.height * .29, cx, size.height * .29)
+        ..cubicTo(cx, size.height * .29, size.width * .51, size.height * .19, size.width * .62, size.height * .18)
+        ..cubicTo(size.width * .86, size.height * .15, size.width * .92, size.height * .53, cx, size.height * .86)
+        ..close();
+      canvas.drawPath(path, p);
+      p.color = const Color(0xFFFFB5C9);
+      canvas.drawCircle(Offset(size.width * .35, size.height * .32), size.width * .07, p);
+    } else if (kind == 'gold') {
+      p.color = const Color(0xFFFFC83D);
+      canvas.drawCircle(Offset(cx, cy), size.width * .42, p);
+      p.color = const Color(0xFFFFE27A);
+      canvas.drawCircle(Offset(cx - size.width * .08, cy - size.height * .10), size.width * .10, p);
+      final tp = TextPainter(
+        text: const TextSpan(text: '\$', style: TextStyle(color: Color(0xFF7A4B00), fontSize: 9, fontWeight: FontWeight.w900)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2 + .5));
+    } else {
+      p.color = const Color(0xFF39E7FF);
+      final path = Path()
+        ..moveTo(cx, size.height * .04)
+        ..lineTo(size.width * .86, cy)
+        ..lineTo(cx, size.height * .96)
+        ..lineTo(size.width * .14, cy)
+        ..close();
+      canvas.drawPath(path, p);
+      p.color = const Color(0xFFB9F8FF).withOpacity(.8);
+      final shine = Path()
+        ..moveTo(cx, size.height * .16)
+        ..lineTo(size.width * .43, cy)
+        ..lineTo(cx, size.height * .47)
+        ..close();
+      canvas.drawPath(shine, p);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _SeasonPlusCurrencyPainter oldDelegate) => oldDelegate.kind != kind;
 }
 class _TrollPainter extends CustomPainter {
   _TrollPainter(this.engine, this.stageId);
@@ -1775,102 +1841,301 @@ class _TrollPainter extends CustomPainter {
   }
 
   void _drawSeasonPlusEnemy(Canvas canvas, TrollEntity e) {
-    final p = Paint()..color = const Color(0xFFFF5577);
-    final body = RRect.fromRectAndRadius(
-      e.rect.toRect(),
-      const Radius.circular(8),
-    );
-    p.maskFilter = const MaskFilter.blur(BlurStyle.outer, 8);
-    canvas.drawRRect(body, p);
-    p.maskFilter = null;
-    p.color = const Color(0xFF5A183A);
-    canvas.drawRRect(body.deflate(3), p);
+    final kind = e.enemyKind ?? 'sword';
+    final dir = (engine.player.rect.centerX - e.rect.centerX).sign == 0
+        ? 1.0
+        : (engine.player.rect.centerX - e.rect.centerX).sign;
+    final x = e.rect.x;
+    final y = e.rect.y;
+    final w = e.rect.w;
+    final h = e.rect.h;
 
-    // Eyes point toward the player.
-    final eye = Paint()..color = const Color(0xFFFFE6F0);
-    final eyeDir = (engine.player.rect.centerX - e.rect.centerX).sign;
-    canvas.drawCircle(
-      Offset(e.rect.x + 13 + eyeDir * 2, e.rect.y + 13),
-      3,
-      eye,
-    );
-    canvas.drawCircle(
-      Offset(e.rect.x + 28 + eyeDir * 2, e.rect.y + 13),
-      3,
-      eye,
+    canvas.save();
+    canvas.translate(x, y);
+
+    // Ground shadow + restrained neon rim: keeps the approved character
+    // silhouettes readable without making them look like square UI icons.
+    canvas.drawOval(
+      Rect.fromLTWH(4, h - 5, w - 8, 7),
+      Paint()
+        ..color = const Color(0x66000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
     );
 
-    final weapon = Paint()
-      ..color = const Color(0xFFE7EAF5)
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-    final hand = Offset(
-      e.rect.x + (eyeDir >= 0 ? e.rect.w - 5 : 5),
-      e.rect.y + 28,
-    );
-    final weaponEnd = Offset(
-      hand.dx + eyeDir * 28,
-      hand.dy - 14,
-    );
-
-    if (e.enemyKind == 'hammer') {
-      weapon.color = const Color(0xFF9A6B43);
-      weapon.strokeWidth = 7;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      weapon.color = const Color(0xFF4E5260);
-      weapon.strokeWidth = 11;
-      canvas.drawLine(
-        Offset(weaponEnd.dx - eyeDir * 8, weaponEnd.dy - 2),
-        Offset(weaponEnd.dx + eyeDir * 8, weaponEnd.dy - 2),
-        weapon,
-      );
-    } else if (e.enemyKind == 'wood') {
-      weapon.color = const Color(0xFF9A6B43);
-      weapon.strokeWidth = 8;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      weapon.color = const Color(0xFFD8A56B);
-      weapon.strokeWidth = 4;
-      canvas.drawLine(
-        Offset(weaponEnd.dx - eyeDir * 4, weaponEnd.dy - 2),
-        Offset(weaponEnd.dx + eyeDir * 4, weaponEnd.dy - 2),
-        weapon,
-      );
-    } else if (e.enemyKind == 'knife') {
-      weapon.color = const Color(0xFFCFD8E8);
-      weapon.strokeWidth = 5;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      final blade = Path()
-        ..moveTo(weaponEnd.dx, weaponEnd.dy)
-        ..lineTo(weaponEnd.dx + eyeDir * 18, weaponEnd.dy - 7)
-        ..lineTo(weaponEnd.dx + eyeDir * 9, weaponEnd.dy + 5)
-        ..close();
-      canvas.drawPath(blade, weapon);
-    } else {
-      weapon.color = const Color(0xFFCFD8E8);
-      weapon.strokeWidth = 5;
-      canvas.drawLine(hand, weaponEnd, weapon);
-      final blade = Path()
-        ..moveTo(weaponEnd.dx, weaponEnd.dy)
-        ..lineTo(weaponEnd.dx + eyeDir * 34, weaponEnd.dy - 10)
-        ..lineTo(weaponEnd.dx + eyeDir * 24, weaponEnd.dy + 2)
-        ..close();
-      canvas.drawPath(blade, weapon);
+    Color body;
+    Color dark;
+    Color accent;
+    switch (kind) {
+      case 'hammer':
+        body = const Color(0xFFE52D4D);
+        dark = const Color(0xFF4B1225);
+        accent = const Color(0xFF7E1D37);
+        break;
+      case 'wood':
+        body = const Color(0xFFC87532);
+        dark = const Color(0xFF4A2818);
+        accent = const Color(0xFFE3A15A);
+        break;
+      case 'knife':
+        body = const Color(0xFF4FAF58);
+        dark = const Color(0xFF123A28);
+        accent = const Color(0xFF8FE36B);
+        break;
+      case 'fire':
+        body = const Color(0xFF7136B8);
+        dark = const Color(0xFF24123F);
+        accent = const Color(0xFFFF7A2A);
+        break;
+      case 'bat':
+        body = const Color(0xFF6E35C9);
+        dark = const Color(0xFF25104C);
+        accent = const Color(0xFFB36BFF);
+        break;
+      case 'spiked':
+        body = const Color(0xFF6F4A8E);
+        dark = const Color(0xFF24182F);
+        accent = const Color(0xFFD2A6FF);
+        break;
+      case 'archer':
+        body = const Color(0xFF7439A7);
+        dark = const Color(0xFF21102F);
+        accent = const Color(0xFFE2A7FF);
+        break;
+      default:
+        body = const Color(0xFF7136B8);
+        dark = const Color(0xFF24123F);
+        accent = const Color(0xFFB98CFF);
     }
 
+    if (kind == 'bat') {
+      final wing = Paint()..color = body;
+      final leftWing = Path()
+        ..moveTo(20, 18)
+        ..lineTo(2, 8)
+        ..lineTo(7, 27)
+        ..lineTo(14, 22)
+        ..close();
+      final rightWing = Path()
+        ..moveTo(22, 18)
+        ..lineTo(40, 8)
+        ..lineTo(35, 27)
+        ..lineTo(28, 22)
+        ..close();
+      canvas.drawPath(leftWing, wing);
+      canvas.drawPath(rightWing, wing);
+      canvas.drawCircle(const Offset(21, 22), 12, Paint()..color = dark);
+      canvas.drawCircle(const Offset(17, 20), 2.4, Paint()..color = const Color(0xFFFF5577));
+      canvas.drawCircle(const Offset(25, 20), 2.4, Paint()..color = const Color(0xFFFF5577));
+      final teeth = Paint()..color = Colors.white;
+      canvas.drawPath(Path()..moveTo(16, 28)..lineTo(19, 28)..lineTo(17.5, 33)..close(), teeth);
+      canvas.drawPath(Path()..moveTo(23, 28)..lineTo(26, 28)..lineTo(24.5, 33)..close(), teeth);
+    } else if (kind == 'spiked') {
+      final shell = RRect.fromRectAndRadius(
+        Rect.fromLTWH(5, 17, 32, 21),
+        const Radius.circular(9),
+      );
+      canvas.drawRRect(shell, Paint()..color = dark);
+      canvas.drawRRect(shell.deflate(3), Paint()..color = body);
+      for (int i = 0; i < 5; i++) {
+        final px = 8.0 + i * 7.0;
+        final p = Path()
+          ..moveTo(px, 18)
+          ..lineTo(px + 3.5, 7)
+          ..lineTo(px + 7, 18)
+          ..close();
+        canvas.drawPath(p, Paint()..color = accent);
+      }
+      canvas.drawCircle(const Offset(12, 27), 3, Paint()..color = const Color(0xFFFFE8FF));
+      canvas.drawCircle(const Offset(31, 27), 3, Paint()..color = const Color(0xFFFFE8FF));
+      canvas.drawCircle(const Offset(12, 27), 1.3, Paint()..color = dark);
+      canvas.drawCircle(const Offset(31, 27), 1.3, Paint()..color = dark);
+    } else {
+      // Legs and boots.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(10, 33, 8, 11), const Radius.circular(3)),
+        Paint()..color = dark,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(25, 33, 8, 11), const Radius.circular(3)),
+        Paint()..color = dark,
+      );
+      canvas.drawOval(Rect.fromLTWH(7, 41, 13, 5), Paint()..color = const Color(0xFF090B15));
+      canvas.drawOval(Rect.fromLTWH(23, 41, 13, 5), Paint()..color = const Color(0xFF090B15));
+
+      // Body armor/tunic.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(8, 18, 27, 19), const Radius.circular(6)),
+        Paint()..color = dark,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(11, 19, 21, 16), const Radius.circular(5)),
+        Paint()..color = body,
+      );
+      canvas.drawRect(Rect.fromLTWH(12, 31, 19, 3), Paint()..color = accent);
+
+      // Head / hood / helmet.
+      final head = RRect.fromRectAndRadius(
+        Rect.fromLTWH(9, 3, 25, 20),
+        const Radius.circular(8),
+      );
+      canvas.drawRRect(head, Paint()..color = dark);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(11, 5, 21, 15), const Radius.circular(6)),
+        Paint()..color = body,
+      );
+
+      // Face visor. Eyes look toward the player.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(13, 10, 17, 7), const Radius.circular(3)),
+        Paint()..color = const Color(0xFF090A12),
+      );
+      final eye = Paint()..color = const Color(0xFFFFE7F2);
+      canvas.drawCircle(Offset(17 + dir * 1.5, 13.5), 1.8, eye);
+      canvas.drawCircle(Offset(24 + dir * 1.5, 13.5), 1.8, eye);
+
+      // Arm and hand extend toward the weapon, so the weapon is visibly held.
+      final shoulder = Offset(dir > 0 ? 29 : 13, 23);
+      final elbow = Offset(dir > 0 ? 35 : 7, 27);
+      final hand = Offset(dir > 0 ? 36 : 6, 29);
+      final arm = Paint()
+        ..color = body
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(shoulder, elbow, arm);
+      canvas.drawLine(elbow, hand, arm);
+      canvas.drawCircle(hand, 3.2, Paint()..color = accent);
+
+      if (kind == 'hammer') {
+        // Heavy hammer: long handle in hand + large head at the far end.
+        final handleEnd = Offset(hand.dx + dir * 16, 17);
+        final hp = Paint()
+          ..color = const Color(0xFF9A633A)
+          ..strokeWidth = 4
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(hand, handleEnd, hp);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(handleEnd.dx - (dir > 0 ? 7 : -21), handleEnd.dy - 7, 28, 13),
+            const Radius.circular(3),
+          ),
+          Paint()..color = const Color(0xFF4D5260),
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(
+            dir > 0 ? handleEnd.dx + 5 : handleEnd.dx - 9,
+            handleEnd.dy - 5,
+            4,
+            9,
+          ),
+          Paint()..color = const Color(0xFF8C94A7),
+        );
+      } else if (kind == 'wood') {
+        final clubEnd = Offset(hand.dx + dir * 19, 20);
+        canvas.drawLine(
+          hand,
+          clubEnd,
+          Paint()
+            ..color = const Color(0xFF8A4D25)
+            ..strokeWidth = 6
+            ..strokeCap = StrokeCap.round,
+        );
+        canvas.drawOval(
+          Rect.fromCenter(center: clubEnd, width: 11, height: 17),
+          Paint()..color = const Color(0xFFD0914E),
+        );
+      } else if (kind == 'knife') {
+        final bladeEnd = Offset(hand.dx + dir * 19, 25);
+        canvas.drawLine(
+          hand,
+          bladeEnd,
+          Paint()
+            ..color = const Color(0xFF5B3A2A)
+            ..strokeWidth = 4
+            ..strokeCap = StrokeCap.round,
+        );
+        final blade = Path()
+          ..moveTo(bladeEnd.dx, bladeEnd.dy - 4)
+          ..lineTo(bladeEnd.dx + dir * 16, bladeEnd.dy - 9)
+          ..lineTo(bladeEnd.dx + dir * 10, bladeEnd.dy + 2)
+          ..close();
+        canvas.drawPath(blade, Paint()..color = const Color(0xFFD9E4F5));
+        canvas.drawLine(
+          Offset(bladeEnd.dx + dir * 2, bladeEnd.dy - 2),
+          Offset(bladeEnd.dx + dir * 12, bladeEnd.dy - 5),
+          Paint()..color = Colors.white..strokeWidth = 1.2,
+        );
+      } else if (kind == 'archer') {
+        final bow = Paint()
+          ..color = const Color(0xFFD89B5E)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5;
+        final bowPath = Path()
+          ..moveTo(hand.dx + dir * 2, 16)
+          ..quadraticBezierTo(hand.dx + dir * 13, 28, hand.dx + dir * 2, 40);
+        canvas.drawPath(bowPath, bow);
+        canvas.drawLine(
+          Offset(hand.dx + dir * 2, 16),
+          Offset(hand.dx + dir * 2, 40),
+          bow,
+        );
+        bow.style = PaintingStyle.fill;
+      } else if (kind == 'fire') {
+        final flame = Path()
+          ..moveTo(hand.dx + dir * 5, hand.dy)
+          ..lineTo(hand.dx + dir * 16, hand.dy - 6)
+          ..lineTo(hand.dx + dir * 12, hand.dy)
+          ..lineTo(hand.dx + dir * 18, hand.dy + 4)
+          ..close();
+        canvas.drawPath(flame, Paint()..color = const Color(0xFFFF6A21));
+        canvas.drawCircle(
+          Offset(hand.dx + dir * 10, hand.dy),
+          4,
+          Paint()..color = const Color(0xFFFFE27A),
+        );
+      } else {
+        // Sword Knight: guard + grip + long blade aligned from the hand.
+        final guard = Offset(hand.dx + dir * 3, hand.dy);
+        canvas.drawLine(
+          Offset(guard.dx, guard.dy - 7),
+          Offset(guard.dx, guard.dy + 7),
+          Paint()
+            ..color = const Color(0xFFE0B34A)
+            ..strokeWidth = 3.5
+            ..strokeCap = StrokeCap.round,
+        );
+        final bladeBase = Offset(guard.dx + dir * 3, guard.dy);
+        final bladeTip = Offset(bladeBase.dx + dir * 23, bladeBase.dy - 11);
+        final blade = Path()
+          ..moveTo(bladeBase.dx, bladeBase.dy - 4)
+          ..lineTo(bladeTip.dx, bladeTip.dy)
+          ..lineTo(bladeBase.dx + dir * 6, bladeBase.dy + 5)
+          ..close();
+        canvas.drawPath(blade, Paint()..color = const Color(0xFFDCE8F8));
+        canvas.drawLine(
+          bladeBase,
+          Offset(bladeTip.dx - dir * 4, bladeTip.dy + 1),
+          Paint()..color = Colors.white..strokeWidth = 1.3,
+        );
+      }
+    }
+
+    // Health bar for armored enemies.
     if (e.health > 1) {
-      final bar = Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w, 4);
+      final bar = Rect.fromLTWH(0, -9, w, 4);
       canvas.drawRRect(
         RRect.fromRectAndRadius(bar, const Radius.circular(2)),
-        Paint()..color = const Color(0x55333333),
+        Paint()..color = const Color(0x66000000),
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(e.rect.x, e.rect.y - 9, e.rect.w * (e.health / 2).clamp(0.0, 1.0), 4),
+          Rect.fromLTWH(0, -9, w * (e.health / 2).clamp(0.0, 1.0), 4),
           const Radius.circular(2),
         ),
         Paint()..color = const Color(0xFFFFD54A),
       );
     }
+
+    canvas.restore();
   }
 
   void _drawFireball(Canvas canvas, TrollEntity e) {
@@ -1892,27 +2157,80 @@ class _TrollPainter extends CustomPainter {
   }
 
   void _drawRewardChest(Canvas canvas, TrollEntity e) {
-    final r = RRect.fromRectAndRadius(e.rect.toRect(), const Radius.circular(7));
-    final glow = Paint()
-      ..color = const Color(0xFFFFD54A).withOpacity(.18)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    canvas.drawRRect(r.inflate(3), glow);
-    final body = Paint()..color = const Color(0xFF7A4725);
-    canvas.drawRRect(r, body);
+    final r = RRect.fromRectAndRadius(
+      e.rect.toRect(),
+      const Radius.circular(6),
+    );
+
+    // Approved Season+ reward box: warm wood, gold bands, bright lock and
+    // a small reward marker so the player immediately knows it is breakable.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(e.rect.toRect().inflate(5), const Radius.circular(8)),
+      Paint()
+        ..color = const Color(0xFFFFB52E).withOpacity(.16)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+
+    canvas.drawRRect(r, Paint()..color = const Color(0xFF6B3B22));
     canvas.drawRect(
       Rect.fromLTWH(e.rect.x, e.rect.y + 13, e.rect.w, 6),
-      Paint()..color = const Color(0xFFD89B3D),
+      Paint()..color = const Color(0xFFD9952E),
     );
     canvas.drawRect(
-      Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 3, e.rect.y + 11, 6, 10),
-      Paint()..color = const Color(0xFFFFD54A),
+      Rect.fromLTWH(e.rect.x + 3, e.rect.y + 4, 4, e.rect.h - 8),
+      Paint()..color = const Color(0xFF9C5A2B),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(e.rect.right - 7, e.rect.y + 4, 4, e.rect.h - 8),
+      Paint()..color = const Color(0xFF9C5A2B),
+    );
+
+    // Crossed planks give the chest the same illustrated silhouette as the
+    // approved reference instead of looking like a generic rectangle.
+    final plank = Paint()
+      ..color = const Color(0xFFE2A451)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(e.rect.x + 8, e.rect.y + 8),
+      Offset(e.rect.right - 8, e.rect.bottom - 8),
+      plank,
     );
     canvas.drawLine(
-      Offset(e.rect.x + 7, e.rect.y + 6),
-      Offset(e.rect.right - 7, e.rect.y + 6),
+      Offset(e.rect.right - 8, e.rect.y + 8),
+      Offset(e.rect.x + 8, e.rect.bottom - 8),
+      plank,
+    );
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(e.rect.x + e.rect.w / 2 - 5, e.rect.y + 11, 10, 12),
+        const Radius.circular(2),
+      ),
+      Paint()..color = const Color(0xFFFFD54A),
+    );
+    canvas.drawCircle(
+      Offset(e.rect.x + e.rect.w / 2, e.rect.y + 17),
+      2,
+      Paint()..color = const Color(0xFF7A4B00),
+    );
+
+    final markerColor = e.rewardKind == 'gems'
+        ? const Color(0xFF39E7FF)
+        : e.rewardKind == 'heart'
+            ? const Color(0xFFFF4F83)
+            : const Color(0xFFFFC83D);
+    canvas.drawCircle(
+      Offset(e.rect.centerX, e.rect.y - 6),
+      7,
       Paint()
-        ..color = const Color(0xFFFFD54A).withOpacity(.8)
-        ..strokeWidth = 2,
+        ..color = markerColor.withOpacity(.20)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+    canvas.drawCircle(
+      Offset(e.rect.centerX, e.rect.y - 6),
+      4,
+      Paint()..color = markerColor,
     );
   }
 
