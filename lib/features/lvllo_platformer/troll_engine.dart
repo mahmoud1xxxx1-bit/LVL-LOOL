@@ -741,7 +741,7 @@ class TrollEngine {
   
   // Score Tracking
   int totalScore = 0;
-  // A stage has one gameplay attempt; the persistent Lives system is global.\n  int roundHearts = 1;
+  // A stage has one gameplay attempt; the persistent Lives system is global.
   int roundIndex = 0;
   int errorCount = 0;
 
@@ -1404,7 +1404,7 @@ class TrollEngine {
       entities.add(TrollEntity(
         id: fakeId,
         type: TrollEntityType.door,
-        rect: RectD(fakeCol * gs, 11 * gs - 20, gs, gs + 20),
+        rect: RectD(fakeCol * gs, 12 * gs - 20, gs, gs + 20),
         color: const Color(0xFFFFD700),
         isSolid: false,
       ));
