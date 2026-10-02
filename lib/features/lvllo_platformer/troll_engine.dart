@@ -792,6 +792,8 @@ class TrollEngine {
   // Player Animation state
   double playerFaceDir = 1.0; 
   double playerScale = 1.0;
+  int hitPoints = 2;
+  double hitInvulnerability = 0.0;
 
   int _seedForRound(int roundId) =>
       stageSeedOverride ?? (roundId + (mechanicOffset * 1000));
@@ -871,11 +873,33 @@ class TrollEngine {
   }
 
   void killPlayer() {
-    if (isDead || roundWon) return;
+    if (isDead || roundWon || hitInvulnerability > 0) return;
     if (TrollEngine.godMode) return;
-    isDead = true;
     errorCount++;
-    _spawnParticles(player.rect.x + player.rect.w/2, player.rect.y + player.rect.h/2, 40, const Color(0xFF00FFCC));
+    hitPoints--;
+
+    _spawnParticles(
+      player.rect.x + player.rect.w / 2,
+      player.rect.y + player.rect.h / 2,
+      40,
+      const Color(0xFF00FFCC),
+    );
+
+    if (hitPoints > 0) {
+      // First hit: recover immediately at the stage start. The player gets
+      // one real mistake without consuming a persistent life.
+      player.rect = RectD(2 * gs + 5, 12 * gs + 5, player.rect.w, player.rect.h);
+      player.vx = 0;
+      player.vy = 0;
+      movingLeft = false;
+      movingRight = false;
+      jumping = false;
+      cameraX = 0;
+      hitInvulnerability = 1.15;
+      return;
+    }
+
+    isDead = true;
     deathTimer = 1.0;
     roundHearts--;
   }
@@ -936,6 +960,8 @@ class TrollEngine {
     jumping = false;
     playerFaceDir = 1.0;
     playerScale = 1.0;
+    hitPoints = 2;
+    hitInvulnerability = 0.0;
     coyoteTimer = 0;
     jumpBufferTimer = 0;
     cameraX = 0;
@@ -1346,6 +1372,63 @@ class TrollEngine {
       grid[14][c] = 'X';
     }
     grid[12][2] = 'P';
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // STAGE 1 — "FAKE EXIT"
+    // A hand-authored stage is used as the gameplay quality benchmark.
+    // It is deliberately not generated from the generic trap recipe.
+    // ══════════════════════════════════════════════════════════════════════════
+    if (id == 1) {
+      mapCols = 230;
+      grid = List.generate(15, (r) => List.generate(mapCols, (c) => '.'));
+      for (int c = 0; c < mapCols; c++) {
+        grid[13][c] = 'X';
+        grid[14][c] = 'X';
+      }
+      grid[12][2] = 'P';
+
+      // 1) Early readable hazard: a short spike gap.
+      for (int c = 40; c < 43; c++) {
+        grid[12][c] = 's';
+      }
+
+      // 2) The floor looks safe, then drops after the player commits.
+      addFallingFloor(72, 5);
+
+      // 3) A wall appears after the player has already chosen the obvious lane.
+      addAppearingWall(103);
+
+      // 4) The main troll: a convincing fake exit.
+      final fakeCol = 137;
+      final fakeId = 'stage1_fake_door';
+      entities.add(TrollEntity(
+        id: fakeId,
+        type: TrollEntityType.door,
+        rect: RectD(fakeCol * gs, 11 * gs - 20, gs, gs + 20),
+        color: const Color(0xFFFFD700),
+        isSolid: false,
+      ));
+      traps.add(FakeDoorTrap(fakeId));
+
+      // 5) Real exit is deliberately farther away. It is visible only after
+      // the player survives/passes the fake exit area.
+      final realCol = 205;
+      grid[12][realCol] = 'D';
+
+      // Final approach has a small timing challenge, not a trap wall.
+      for (int c = 180; c < 183; c++) {
+        grid[12][c] = 's';
+      }
+
+      // Keep a clean landing/finish corridor.
+      for (int c = realCol + 1; c < mapCols; c++) {
+        grid[13][c] = '.';
+        grid[14][c] = '.';
+      }
+
+      _parseMap(grid.map((row) => row.join('')).toList());
+      return;
+    }
 
     // ══════════════════════════════════════════════════════════════════════════
     // NEW RECIPE SYSTEM — 11/14/18 traps, seeded random placement
@@ -2053,6 +2136,7 @@ class TrollEngine {
 
   void update(double dt) {
     if (dt > 0.05) dt = 0.05;
+    if (hitInvulnerability > 0) hitInvulnerability = max(0, hitInvulnerability - dt);
     
     final double maxFallSpeed = 900.0;
     
