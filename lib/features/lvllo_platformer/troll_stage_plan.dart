@@ -72,6 +72,21 @@ class TrollStagePlan {
     }
 
     final localStage = stageId - 100;
+
+    // Stage 1 is the hand-authored gameplay benchmark, not an easy tutorial.
+    // It uses the "Fake Exit" concept and is intentionally rated HARD.
+    if (localStage == 1) {
+      return TrollStagePlan._(
+        stageId: stageId,
+        season: 6,
+        localStage: 1,
+        levelsPerMechanic: 3,
+        mechanicOffset: 0,
+        mechanicId: 1,
+        difficulty: 3,
+      );
+    }
+
     final groupIndex = (localStage - 1) ~/ 3;
     final mechanicId = season6MechanicIds[groupIndex];
     final mechanicOffset = mechanicId - 1;
